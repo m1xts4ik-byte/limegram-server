@@ -191,7 +191,7 @@ final class Core {
         String id = s(u.get("id"));
         boolean hideSeen = "nobody".equals(priv(u, "lastSeen")), hideAbout = "nobody".equals(priv(u, "about")), hideGifts = "nobody".equals(priv(u, "gifts"));
         boolean pr = prem(u);
-        return obj("id", id, "name", u.get("name"), "username", u.get("username"), "bio", hideAbout ? "" : u.get("bio"), "color", u.get("color"),
+        return obj("id", id, "name", u.get("name"), "username", u.get("username"), "bio", hideAbout ? "" : u.get("bio"), "color", u.get("color"), "avatar", u.getOrDefault("avatar", ""),
                 "online", !hideSeen && hub.isOnline(id), "lastSeen", hideSeen ? 0 : u.get("lastSeen"), "hiddenSeen", hideSeen, "isAdmin", isAdmin(u),
                 "verified", b(u.get("verified")), "premium", pr, "emoji", pr ? s(u.get("emojiStatus")) : "",
                 "gifts", hideGifts ? new ArrayList<>() : publicGifts(u));
@@ -321,6 +321,14 @@ final class Core {
             u.put("username", un);
         }
         if (body.containsKey("bio")) u.put("bio", trunc(s(body.get("bio")).strip(), prem(u) ? 500 : 200));
+        if (body.containsKey("avatar")) {
+            String avatar = s(body.get("avatar"));
+            if (!avatar.isEmpty()) {
+                if (!avatar.matches("^data:image/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$") || avatar.length() > 420_000)
+                    throw new Api(400, "Аватар: загрузите PNG, JPEG, WebP или GIF размером до 300 КБ");
+            }
+            u.put("avatar", avatar);
+        }
         if (body.containsKey("color") && (Arrays.asList(COLORS).contains(s(body.get("color"))) || (prem(u) && Arrays.asList(PREMIUM_COLORS).contains(s(body.get("color")))))) u.put("color", body.get("color"));
         dirty();
         Map<String, Object> pv = pub(u);
