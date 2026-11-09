@@ -778,6 +778,37 @@ final class Core {
     synchronized Object userInfo(String uid, String target) {
         Map<String, Object> u = user(target);
         Map<String, Object> v = pub(u);
+        // Номер показывается только если владелец не скрыл его в настройках приватности.
+        if (uid.equals(target) || !"nobody".equals(priv(u, "phone"))) v.put("phone", u.get("phone"));
+
+        // Общая история доступна только участникам личного чата; скрытые сообщения не учитываются.
+        for (Map<String, Object> c : chats.values()) {
+            List<Object> members = l(c.get("members"));
+            if (!"private".equals(s(c.get("type"))) || !members.contains(uid) || !members.contains(target)) continue;
+            String cid = s(c.get("id"));
+            List<Map<String, Object>> all = messages.getOrDefault(cid, List.of());
+            int photos = 0, videos = 0, visibleCount = 0;
+            LinkedHashSet<String> links = new LinkedHashSet<>();
+            List<Object> recent = new ArrayList<>();
+            for (int i = all.size() - 1; i >= 0; i--) {
+                Map<String, Object> msg = all.get(i);
+                if (hiddenFor(msg, uid)) continue;
+                visibleCount++;
+                String text = s(msg.get("text"));
+                java.util.regex.Matcher lm = Pattern.compile("https?://[^\\s<>]+", Pattern.CASE_INSENSITIVE).matcher(text);
+                while (lm.find() && links.size() < 30) links.add(lm.group());
+                if (msg.get("attach") instanceof Map<?, ?>) {
+                    String type = s(m(msg.get("attach")).get("type")).toLowerCase(Locale.ROOT);
+                    if (type.contains("image") || type.contains("photo")) photos++;
+                    if (type.contains("video")) videos++;
+                }
+                if (recent.size() < 8) recent.add(forUser(msg, uid));
+            }
+            Collections.reverse(recent);
+            v.put("shared", obj("chatId", cid, "messageCount", visibleCount, "photos", photos, "videos", videos,
+                    "links", new ArrayList<>(links), "recent", recent));
+            break;
+        }
         return v;
     }
 
@@ -1125,19 +1156,18 @@ final class Core {
 
     // ======================= LimeGram Premium, звёзды, подарки =======================
     static final Map<String, Object[]> GIFTS = new LinkedHashMap<>();   // id -> {эмодзи, название, цена}
-    static {   // id -> {эмодзи, название, цена, тираж (0 = без лимита), цвет1, цвет2}
-        GIFTS.put("rose", new Object[]{"🌹", "Роза", 25L, 0L, "#fb7185", "#be123c"});
-        GIFTS.put("heart", new Object[]{"💖", "Сердце", 40L, 0L, "#f472b6", "#be185d"});
-        GIFTS.put("bear", new Object[]{"🧸", "Мишка", 60L, 0L, "#fbbf24", "#b45309"});
-        GIFTS.put("cake", new Object[]{"🎂", "Торт", 100L, 0L, "#f9a8d4", "#9d174d"});
-        GIFTS.put("champ", new Object[]{"🍾", "Шампанское", 150L, 3000L, "#fde68a", "#a16207"});
-        GIFTS.put("fire", new Object[]{"🔥", "Огонь", 200L, 2000L, "#fb923c", "#b91c1c"});
-        GIFTS.put("cup", new Object[]{"🏆", "Кубок", 250L, 1500L, "#fcd34d", "#92400e"});
-        GIFTS.put("ring", new Object[]{"💍", "Кольцо", 350L, 1000L, "#a5b4fc", "#4338ca"});
-        GIFTS.put("gem", new Object[]{"💎", "Бриллиант", 500L, 500L, "#67e8f9", "#0e7490"});
-        GIFTS.put("rocket", new Object[]{"🚀", "Ракета", 1000L, 250L, "#c4b5fd", "#6d28d9"});
-        GIFTS.put("unicorn", new Object[]{"🦄", "Единорог", 1500L, 100L, "#f0abfc", "#a21caf"});
-        GIFTS.put("crown", new Object[]{"👑", "Корона", 2500L, 50L, "#fde047", "#a16207"});
+    static {   // Telegram-like gift catalog used by the client reference UI.
+        GIFTS.put("heart",   new Object[]{"💗", "Сердце", 15L, 0L, "#ff4fa3", "#ff0a73"});
+        GIFTS.put("bear",    new Object[]{"🧸", "Мишка", 15L, 0L, "#d89b48", "#8f5b20"});
+        GIFTS.put("box",     new Object[]{"🎁", "Подарок", 25L, 0L, "#ff3d5a", "#d5002b"});
+        GIFTS.put("rose",    new Object[]{"🌹", "Роза", 25L, 0L, "#ff526f", "#c51d3a"});
+        GIFTS.put("cake",    new Object[]{"🎂", "Торт", 50L, 0L, "#ffd1df", "#ff668d"});
+        GIFTS.put("bouquet", new Object[]{"💐", "Букет", 50L, 0L, "#ff8bb7", "#b83a78"});
+        GIFTS.put("rocket",  new Object[]{"🚀", "Ракета", 50L, 0L, "#79b9ff", "#3566d4"});
+        GIFTS.put("cup",     new Object[]{"🏆", "Кубок", 100L, 0L, "#ffd95c", "#c77800"});
+        GIFTS.put("ring",    new Object[]{"💍", "Кольцо", 100L, 0L, "#9fe9ff", "#4b78db"});
+        GIFTS.put("gem",     new Object[]{"💎", "Бриллиант", 100L, 0L, "#5ee8ff", "#1e74d8"});
+        GIFTS.put("champ",   new Object[]{"🪔", "Фонарь", 460L, 0L, "#8bd8ff", "#2c70a8"});
     }
     static final Map<Integer, Long> PREMIUM_PRICE = new LinkedHashMap<>();   // месяцев -> звёзд
     static { PREMIUM_PRICE.put(1, 300L); PREMIUM_PRICE.put(3, 800L); PREMIUM_PRICE.put(12, 2500L); }
@@ -1309,7 +1339,7 @@ final class Core {
     }
 
     synchronized Object setPrivacy(String uid, String key, String val) {
-        if (!Set.of("lastSeen", "about", "gifts", "phoneSearch").contains(key)) throw new Api(400, "Неизвестная настройка");
+        if (!Set.of("lastSeen", "about", "gifts", "phoneSearch", "phone").contains(key)) throw new Api(400, "Неизвестная настройка");
         if (!val.equals("all") && !val.equals("nobody")) throw new Api(400, "Неверное значение");
         Map<String, Object> u = user(uid);
         Map<String, Object> p = u.get("privacy") instanceof Map<?, ?> ? m(u.get("privacy")) : new LinkedHashMap<>();
