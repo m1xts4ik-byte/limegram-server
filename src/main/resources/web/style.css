@@ -1006,45 +1006,21 @@ html[data-tsty=night][data-theme=dark]{--bg:#10151b;--bg2:#0a0e13;--hover:#171e2
 }
 
 
-/* ---------- LimeGram: расширенный профиль пользователя ---------- */
-.modal:has(.up-profile){width:min(520px,calc(100vw - 24px));max-height:min(90vh,860px);padding:0;overflow:hidden;border-radius:20px}
-.up-profile{display:flex;flex-direction:column;max-height:min(90vh,860px);background:var(--bg);overflow:hidden}
-.up-top{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--line);flex:none}
-.up-top>span{font-size:10px;letter-spacing:1.8px;font-weight:800;color:var(--muted)}
-.up-top .ico{width:34px;height:34px}
-.up-hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:24px 20px 18px;background:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--primary) 17%,transparent),transparent 70%)}
-.up-hero .av.lg{width:88px;height:88px;border-radius:30px;font-size:29px;box-shadow:0 8px 28px color-mix(in srgb,var(--primary) 22%,transparent);margin-bottom:12px}
-.up-name{font-size:21px;font-weight:750;letter-spacing:-.4px}
-.up-pres{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px;margin-top:6px}
-.up-pres i{width:7px;height:7px;border-radius:50%;background:#87929d}
-.up-pres i.is-online{background:#27c77a;box-shadow:0 0 0 3px #27c77a22}
-.up-username{font-size:12px;color:var(--primary);margin-top:5px}
-.up-actions{display:flex;gap:9px;padding:0 18px 17px}
-.up-actions button{flex:1;border:1px solid var(--line);background:var(--bg2);border-radius:12px;padding:11px 10px;font-size:13px;font-weight:650}
-.up-actions button.up-primary{background:var(--primary);border-color:var(--primary);color:#fff}
-.up-body{overflow:auto;padding:0 18px 18px}
-.up-section{padding:15px 0;border-top:1px solid var(--line)}
-.up-heading{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:750;margin-bottom:10px}
-.up-heading small{color:var(--muted);font-size:11px;font-weight:500}
-.up-bio{font-size:13px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
-.up-phone{width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:13px 12px;margin:0 0 14px;border:1px solid var(--line);border-radius:13px;background:var(--bg2)}
-.up-phone>span:nth-child(2){display:flex;flex-direction:column;gap:3px;flex:1}
-.up-phone small{font-size:11px;color:var(--muted)}
-.up-phone b{font-size:14px;font-weight:650}
-.up-copy{font-size:11px;color:var(--primary)}
-.up-symbol{width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:color-mix(in srgb,var(--primary) 13%,transparent);color:var(--primary);font-size:17px;flex:none}
-.up-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-.up-stats>div{background:var(--bg2);border-radius:11px;padding:11px 5px;text-align:center;display:flex;flex-direction:column;gap:3px}
-.up-stats b{font-size:19px;font-weight:750;font-variant-numeric:tabular-nums}
-.up-stats small{font-size:10px;color:var(--muted)}
-.up-open-chat{display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:10px;padding:12px 13px;border-radius:11px;background:color-mix(in srgb,var(--primary) 10%,transparent);color:var(--primary);font-size:12px;font-weight:700}
-.up-empty{font-size:12px;line-height:1.5;color:var(--muted);padding:12px;background:var(--bg2);border-radius:11px}
-.up-links{display:flex;flex-direction:column;gap:7px}
-.up-links a{display:flex;align-items:center;gap:10px;min-width:0;padding:8px 9px;border-radius:10px;background:var(--bg2);font-size:12px;overflow-wrap:anywhere}
-.up-links a span:last-child{overflow-wrap:anywhere}
-.up-recent{display:flex;flex-direction:column;gap:8px}
-.up-msg{padding:9px 11px;border-radius:10px;background:var(--bg2);font-size:12px;line-height:1.45;overflow-wrap:anywhere}
-.up-msg small{display:block;color:var(--muted);font-size:10px;margin-bottom:4px}
-.up-footer{padding-top:12px;border-top:1px solid var(--line)}
-.up-danger{width:100%;padding:11px;border-radius:10px;color:var(--danger);font-size:12px;font-weight:650;background:color-mix(in srgb,var(--danger) 8%,transparent)}
-@media(max-width:480px){.modal:has(.up-profile){width:100%;max-width:none;max-height:100%;height:100%;border-radius:0}.up-profile{max-height:100%;height:100%}.up-stats{gap:5px}.up-stats b{font-size:17px}}
+/* Расширенная информация о собеседнике */
+#ip .ip-section{padding:13px 15px;margin:8px 10px;background:var(--bg2);border-radius:12px;overflow:hidden}
+#ip .ip-heading{font-size:14px;font-weight:650;margin:0 0 10px;color:var(--text)}
+#ip .ip-section .kv{padding:8px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+#ip .ip-section .kv:last-child{border-bottom:0}
+#ip .ip-section .kv small{color:var(--muted);flex:0 0 42%}
+#ip .ip-section .kv span{max-width:58%;text-align:right;overflow-wrap:anywhere}
+#ip .ip-bio{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45}
+#ip .ip-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#ip .ip-stats>div{background:var(--bg);border-radius:9px;padding:10px;display:flex;flex-direction:column;gap:3px}
+#ip .ip-stats b{font-size:19px;font-weight:700}
+#ip .ip-stats small{font-size:12px;color:var(--muted)}
+#ip .ip-activity{display:flex;flex-direction:column;gap:3px;padding:8px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}
+#ip .ip-activity small{font-size:11px;color:var(--muted)}
+#ip .ip-empty{font-size:13px;color:var(--muted)}
+#ip .ip-links{display:flex;flex-direction:column;gap:9px}
+#ip .ip-link{color:var(--primary);font-size:13px;overflow-wrap:anywhere;text-decoration:none}
+#ip .ip-link:hover{text-decoration:underline}
