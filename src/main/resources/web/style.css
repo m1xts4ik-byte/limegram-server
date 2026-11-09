@@ -231,6 +231,42 @@ html[data-theme=dark] .seg{background:#0e1621}
 .info .ph{display:flex;flex-direction:column;align-items:center;padding:20px;gap:6px;text-align:center}.info .ph h3{margin:6px 0 0;font-size:19px}.info .ph small{color:var(--muted)}
 .info .kv{padding:10px 20px;border-top:1px solid var(--line)}.info .kv small{display:block;color:var(--muted);font-size:12.5px}
 .info .item{margin:0 6px}
+
+/* Rich private-chat profile sidebar */
+.info:has(.ip-head){width:min(380px,38vw);background:var(--bg);border-left:1px solid var(--line);gap:0}
+.info:has(.ip-head) .ip-head{background:var(--bg);border-bottom:1px solid var(--line)}
+.info .ip-head>.mh{padding:10px 14px;margin:0}
+.info .ip-hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:18px 16px 14px;gap:5px}
+.info .ip-hero .av{width:88px;height:88px;font-size:28px;margin-bottom:5px}
+.info .ip-hero h3{font-size:18px;margin:0;font-weight:700}
+.info .ip-hero small,.info .ip-username{color:var(--muted);font-size:12.5px}
+.info .ip-username{color:var(--primary);margin-top:2px}
+.info .cacts{display:flex;gap:8px;padding:0 12px 14px}
+.info .cacts button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:9px 3px;border-radius:10px;background:var(--bg2);color:var(--primary);font-size:12px;font-weight:600}
+.info .cacts button:hover{background:var(--hover)}.info .cacts button svg{width:21px;height:21px}
+.info .ip-section{padding:13px 16px;border-bottom:7px solid var(--bg2)}
+.info .ip-label{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text)}
+.info .ip-line{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:5px 0;font-size:13px}
+.info .ip-line small,.info .ip-bio small{color:var(--muted);font-size:12px}
+.info .ip-line b{font-size:13px;font-weight:500;text-align:right;overflow-wrap:anywhere}
+.info .ip-bio div{font-size:13px;margin-top:5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.info .ip-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.info .ip-stats>div{background:var(--bg2);padding:10px;border-radius:9px;min-width:0}
+.info .ip-stats b{display:block;font-size:21px;color:var(--primary);font-weight:700}
+.info .ip-stats small{font-size:11.5px;color:var(--muted)}
+.info .ip-hint{font-size:11px;color:var(--muted);margin-top:9px;line-height:1.4}
+.info .ip-link{display:flex;align-items:center;gap:9px;padding:7px 0;color:var(--primary);font-size:12px;text-decoration:none;min-width:0}
+.info .ip-link svg{width:18px;height:18px;flex:none}.info .ip-link span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.info .ip-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.info .ip-thumb{width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;cursor:zoom-in;background:var(--bg2)}
+.info .ip-file{display:flex;align-items:center;gap:8px;padding:7px 0;font-size:12px;color:var(--muted)}
+.info .ip-activity-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px;min-width:0}
+.info .ip-activity-row>span:nth-child(2){flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.info .ip-activity-row time{color:var(--muted);font-size:10.5px;white-space:nowrap}
+.info .ip-actions{padding:12px 14px 18px;display:grid;gap:7px}
+.info .ip-actions button{padding:10px;border-radius:8px;font-size:12px;font-weight:600;background:var(--bg2)}
+.info .ip-actions .ip-danger{color:var(--danger)}.info .ip-actions .ip-clear{color:var(--primary)}
+@media(max-width:700px){.info:has(.ip-head){width:auto}}
 .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);display:grid;place-items:center;z-index:70;animation:fadeIn .2s;cursor:zoom-out}.lightbox img{max-width:94vw;max-height:92vh;border-radius:6px;animation:popIn .25s var(--ease)}
 .toasts{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:90;align-items:center;pointer-events:none}
 .toast{background:rgba(30,40,50,.94);color:#fff;border-radius:12px;padding:10px 18px;font-size:14px;animation:slideUp .25s var(--ease);box-shadow:var(--shadow);max-width:90vw}.toast.out{opacity:0;transform:translateY(10px);transition:all .25s}
@@ -1004,23 +1040,3 @@ html[data-tsty=night][data-theme=dark]{--bg:#10151b;--bg2:#0a0e13;--hover:#171e2
 @media(max-width:380px){
   .tg-gifts-reference.modal{width:100vw!important;max-width:100vw!important}
 }
-
-
-/* Расширенная информация о собеседнике */
-#ip .ip-section{padding:13px 15px;margin:8px 10px;background:var(--bg2);border-radius:12px;overflow:hidden}
-#ip .ip-heading{font-size:14px;font-weight:650;margin:0 0 10px;color:var(--text)}
-#ip .ip-section .kv{padding:8px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-#ip .ip-section .kv:last-child{border-bottom:0}
-#ip .ip-section .kv small{color:var(--muted);flex:0 0 42%}
-#ip .ip-section .kv span{max-width:58%;text-align:right;overflow-wrap:anywhere}
-#ip .ip-bio{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45}
-#ip .ip-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-#ip .ip-stats>div{background:var(--bg);border-radius:9px;padding:10px;display:flex;flex-direction:column;gap:3px}
-#ip .ip-stats b{font-size:19px;font-weight:700}
-#ip .ip-stats small{font-size:12px;color:var(--muted)}
-#ip .ip-activity{display:flex;flex-direction:column;gap:3px;padding:8px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}
-#ip .ip-activity small{font-size:11px;color:var(--muted)}
-#ip .ip-empty{font-size:13px;color:var(--muted)}
-#ip .ip-links{display:flex;flex-direction:column;gap:9px}
-#ip .ip-link{color:var(--primary);font-size:13px;overflow-wrap:anywhere;text-decoration:none}
-#ip .ip-link:hover{text-decoration:underline}
