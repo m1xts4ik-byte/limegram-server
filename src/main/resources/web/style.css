@@ -562,3 +562,23 @@ html[data-tsty=night][data-theme=dark]{--bg:#10151b;--bg2:#0a0e13;--hover:#171e2
 @keyframes gbGlow{0%{transform:scale(.3);opacity:0}30%{opacity:1}100%{transform:scale(2);opacity:0}}
 @keyframes gbFly{0%{opacity:0;transform:translate(-50%,-50%) rotate(var(--a)) translateX(0) scale(.4)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) rotate(var(--a)) translateX(var(--d)) scale(1.1)}}
 @media (prefers-reduced-motion:reduce){.gmsg,.gm-stage .ge,.gv-hero .ge,.gcard .ge,.gm-stage .sp{animation:none}.gburst{display:none}}
+
+/* LimeGram polish: user avatars, compact responsive bubbles and voice player */
+.av{overflow:hidden}
+.av-img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+.av .on-dot{z-index:2}
+.profile-avatar-edit{display:flex;align-items:center;gap:14px;margin:8px 0 14px}
+.profile-avatar-edit>div:last-child{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.profile-avatar-edit small{color:var(--muted);font-size:11px}
+.msg{max-width:100%;width:fit-content}
+.msg.me{align-self:flex-end}
+.msg:not(.me){align-self:flex-start}
+.bub{max-width:min(520px, min(78vw, 82%))}
+.vm{width:min(330px, 68vw);min-width:0}
+.vm .wv{min-width:70px}
+@media(max-width:600px){
+ .msgs{padding-left:8px;padding-right:8px}
+ .bub{max-width:min(82vw, 520px);padding:6px 9px}
+ .vm{width:min(260px, 70vw);gap:8px}
+ .vm .pl{width:38px;height:38px}
+}
