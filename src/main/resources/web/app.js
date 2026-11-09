@@ -82,7 +82,11 @@ function avatarHtml(c, cls = '') {
   if (c.type === 'private' && c.peer) return userAv(S.users[c.peer.id] || c.peer, cls);
   return `<div class="av ${cls}" style="background-color:${hashColor(c.id)}">${esc(initials(c.title))}</div>`;
 }
-function userAv(u, cls = '') { const pic = u.avatar && /^data:image\/(png|jpeg|webp|gif);base64,/.test(u.avatar) ? `<img class="av-img" src="${esc(u.avatar)}" alt="">` : esc(initials(u.name)); return `<div class="av ${cls}" style="background-color:${esc(u.color)}">${pic}${u.online ? '<i class="on-dot"></i>' : ''}</div>`; }
+function userAv(u, cls = '') {
+  const hasPic = !!(u.avatar && /^data:image\/(png|jpeg|webp|gif);base64,/.test(u.avatar));
+  const pic = hasPic ? `<img class="av-img" src="${esc(u.avatar)}" alt="">` : esc(initials(u.name));
+  return `<div class="av ${cls}${hasPic ? ' has-avatar' : ''}" style="background-color:${esc(u.color)}">${pic}${u.online ? '<i class="on-dot"></i>' : ''}</div>`;
+}
 
 /* ---------- Звук и уведомления ---------- */
 let actx;
@@ -516,6 +520,33 @@ async function inviteModal(c) {
   $('#cp', mb).onclick = () => copyText($('#lk', mb).value);
   $('#rv', mb).onclick = async () => { if (!(await confirmBox('Старая ссылка перестанет работать. Сбросить?', 'Сбросить', true))) return; try { const n = await api('/chats/invite', { chatId: c.id, action: 'revoke' }); $('#lk', mb).value = n.link; toast('Создана новая ссылка'); } catch (er) { fail(er); } };
 }
+function openMediaLightbox(src) {
+  if (!src) return;
+  document.querySelectorAll('.lightbox').forEach(x => x.remove());
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  lb.innerHTML = `<button class="lb-close" type="button" aria-label="Закрыть">${I.close}</button><button class="lb-full" type="button" aria-label="Полный экран">${I.expand || I.edit}</button><img src="${esc(src)}" alt="">`;
+  const close = () => { document.removeEventListener('keydown', onKey); lb.remove(); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  lb.onclick = e => { if (e.target === lb) close(); };
+  $('.lb-close', lb).onclick = close;
+  $('.lb-full', lb).onclick = async e => {
+    e.stopPropagation();
+    try {
+      if (!document.fullscreenElement) await lb.requestFullscreen?.();
+      else await document.exitFullscreen?.();
+    } catch { toast('Полный экран недоступен', true); }
+  };
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(lb);
+}
+document.addEventListener('click', e => {
+  const av = e.target.closest('.av.has-avatar');
+  if (!av || e.target.closest('.profile-photo-btn')) return;
+  const img = $('.av-img', av);
+  if (img) { e.preventDefault(); e.stopPropagation(); openMediaLightbox(img.src); }
+}, true);
+
 async function onMsgClick(e) {
   const c = chat(S.active); if (!c) return;
   if (S.sel) { const mm = e.target.closest('.msg'); if (mm) { e.preventDefault(); toggleSel(mm.dataset.id); } return; }
@@ -534,7 +565,7 @@ async function onMsgClick(e) {
   }
   const q = e.target.closest('[data-goto]'); if (q) return goTo(q.dataset.goto);
   const sp = e.target.closest('.sp'); if (sp) return sp.classList.toggle('open');
-  const im = e.target.closest('[data-img]'); if (im) { const lb = document.createElement('div'); lb.className = 'lightbox'; lb.innerHTML = `<img src="${esc(im.src)}" alt="">`; lb.onclick = () => lb.remove(); document.body.appendChild(lb); return; }
+  const im = e.target.closest('[data-img]'); if (im) { openMediaLightbox(im.src); return; }
   const rx = e.target.closest('[data-rx]'); if (rx) return react(rx.closest('.msg').dataset.id, rx.dataset.rx);
   const pl = e.target.closest('[data-play]'); if (pl) return playVoice(pl.dataset.play);
   const sk = e.target.closest('[data-seek]'); if (sk) { const r = sk.getBoundingClientRect(); return playVoice(sk.dataset.seek, (e.clientX - r.left) / r.width); }
