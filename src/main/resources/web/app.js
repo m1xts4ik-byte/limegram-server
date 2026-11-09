@@ -676,57 +676,53 @@ function openChatSearch(c) {
 /* ---------- Информация о чате / человеке ---------- */
 function infoPanel(c) {
   const p = c.type === 'private' && c.peer ? (S.users[c.peer.id] || c.peer) : null;
-  const msgs = (S.msgs && S.msgs[c.id]) || [];
-  const peerId = p ? String(p.id) : '';
-  const peerMsgs = msgs.filter(m => String(m.from || '') === peerId);
-  const media = msgs.filter(m => m.attach);
-  const photos = media.filter(m => /image|photo/i.test(String(m.attach?.type || ''))).length;
-  const videos = media.filter(m => /video/i.test(String(m.attach?.type || ''))).length;
-  const links = [];
-  const addLinks = value => {
-    const found = String(value || '').match(/https?:\/\/[^\s<>"']+/gi) || [];
-    found.forEach(x => { const clean = x.replace(/[),.!?]+$/, ''); if (!links.includes(clean)) links.push(clean); });
-  };
-  if (p) addLinks(p.bio);
-  msgs.forEach(m => addLinks(m.text));
-  const linkHtml = links.slice(0, 12).map(x => `<a class="ip-link" href="${esc(x)}" target="_blank" rel="noopener noreferrer">${esc(x)}</a>`).join('');
-  const last = peerMsgs.slice(-3).reverse().map(m => `<div class="ip-activity"><span>${esc(String(m.text || (m.attach ? 'Вложение' : 'Сообщение')).slice(0, 110))}</span><small>${m.ts ? new Date(Number(m.ts)).toLocaleString('ru-RU') : ''}</small></div>`).join('');
-  let h = `<div class="mh" style="padding:10px 14px;margin:0"><h2>Информация</h2><button class="ico" id="ipx">${I.close}</button></div>
-    <div class="ph">${avatarHtml(c, 'lg')}<h3>${esc(title(c))}${p ? badges(p) : ''}</h3><small>${esc(statusText(c).t)}</small></div>`;
-  if (p) {
-    h += `<div class="ip-section"><div class="ip-heading">Основная информация</div>`;
-    if (p.username) h += `<div class="kv"><small>Имя пользователя</small><span>@${esc(p.username)}</span></div>`;
-    h += `<div class="kv"><small>Телефон</small><span>Не отображается в публичном профиле</span></div>`;
-    h += `<div class="kv"><small>Статус</small><span>${esc(statusText(c).t)}</span></div>`;
-    h += `</div>`;
-    if (p.bio) h += `<div class="ip-section"><div class="ip-heading">О себе</div><div class="ip-bio">${esc(p.bio)}</div></div>`;
-    h += `<div class="ip-section"><div class="ip-heading">Ваша переписка</div>
-      <div class="ip-stats"><div><b>${peerMsgs.length}</b><small>Сообщений пользователя</small></div><div><b>${photos}</b><small>Фото</small></div><div><b>${videos}</b><small>Видео</small></div><div><b>${links.length}</b><small>Ссылок</small></div></div>
-      ${last ? `<div class="ip-heading" style="margin-top:14px">Последние сообщения</div>${last}` : '<div class="ip-empty">Пока нет сообщений в загруженной истории</div>'}
-    </div>`;
-    if (linkHtml) h += `<div class="ip-section"><div class="ip-heading">Ссылки из профиля и переписки</div><div class="ip-links">${linkHtml}</div></div>`;
-    if (p.gifts && p.gifts.length) h += `<div class="ip-section"><div class="ip-heading">Подарки · ${p.gifts.length}</div><div class="gift-row">${p.gifts.slice(0, 12).map(g => { const gift = giftOf(g.gift); return `<div class="gcard own" title="${esc(gift.name)}"><span class="ge">${gift.emoji}</span></div>`; }).join('')}</div></div>`;
+  if (!p) {
+    let h = `<div class="mh" style="padding:10px 14px;margin:0"><h2>Информация</h2><button class="ico" id="ipx">${I.close}</button></div><div class="ph">${avatarHtml(c, 'lg')}<h3>${esc(title(c))}</h3><small>${esc(statusText(c).t)}</small></div>`;
+    if (c.about) h += `<div class="kv"><small>Описание</small>${esc(c.about)}</div>`;
+    h += `<div class="kv"><button class="btn small ghost" id="icl" style="width:100%">Очистить историю</button></div>`;
+    if (c.type === 'group' || c.type === 'channel') h += `<div class="sect">Участники · ${c.members.length}</div>` + c.members.map(m => { const u = S.users[m.id] || m; return `<div class="item" data-mem="${esc(m.id)}">${userAv(u, 'sm')}<div class="mid"><div class="t">${esc(u.name)}${badges(u)}</div><div class="pv">${c.owner === m.id ? 'владелец' : c.admins.includes(m.id) ? 'админ' : fmtSeen(u)}</div></div></div>`; }).join('');
+    if (c.type === 'group' || c.type === 'channel') h += `<div class="kv"><button class="btn small danger" id="ilv" style="width:100%">${c.type === 'group' ? 'Покинуть группу' : 'Покинуть канал'}</button></div>`;
+    return h;
   }
-  if (c.about) h += `<div class="kv"><small>Описание</small>${esc(c.about)}</div>`;
-  if (c.type === 'group' || c.type === 'channel') {
-    if (isChatAdmin(c)) h += `<div class="kv"><button class="btn small ghost" id="ied" style="width:100%">Изменить название и описание</button></div><div class="kv"><button class="btn small ghost" id="iinv" style="width:100%">Ссылка-приглашение</button></div>`;
-    h += `<div class="sect">${c.type === 'group' ? 'Участники' : 'Подписчики'} · ${c.members.length}</div>`;
-    if (isChatAdmin(c)) h += `<div class="item" id="iadd"><div class="av sm" style="background:var(--primary)">${I.plus}</div><div class="mid"><div class="t" style="color:var(--primary)">Добавить участника</div></div></div>`;
-    h += c.members.map(m => { const u = S.users[m.id] || m; return `<div class="item" data-mem="${esc(m.id)}">${userAv(u, 'sm')}<div class="mid"><div class="t">${esc(u.name)}${badges(u)}</div><div class="pv">${c.owner === m.id ? 'владелец' : c.admins.includes(m.id) ? 'админ' : fmtSeen(u)}</div></div></div>`; }).join('');
-    h += `<div class="kv"><button class="btn small danger" id="ilv" style="width:100%">${c.type === 'group' ? 'Покинуть группу' : 'Покинуть канал'}</button></div>`;
-  }
-  h += `<div class="kv"><button class="btn small ghost" id="icl" style="width:100%">Очистить историю</button></div>`;
-  if (p) h += `<div class="kv"><button class="btn small ${c.blocked ? 'ghost' : 'danger'}" id="ibl" style="width:100%">${c.blocked ? 'Разблокировать' : 'Заблокировать'}</button></div>`;
+  const msgs = S.msgs[c.id] || [];
+  const their = msgs.filter(m => m.from === p.id);
+  const media = their.filter(m => m.attach && String(m.attach.type || '').startsWith('image/'));
+  const videos = their.filter(m => m.attach && String(m.attach.type || '').startsWith('video/'));
+  const urls = [...new Set(their.flatMap(m => (String(m.text || '').match(/https?:\/\/[^\s<>"']+/g) || []).map(x => x.replace(/[),.!?]+$/, ''))))].slice(0, 12);
+  const gifts = p.gifts || [];
+  const isBl = !!c.blocked;
+  const last = their.slice(-3).reverse();
+  const photoHtml = media.slice(-6).reverse().map(m => `<img class="ip-thumb" src="${esc(m.attach.data || '')}" alt="Фото" data-img="1">`).join('');
+  const videoHtml = videos.slice(-4).reverse().map(m => `<div class="ip-file"><span class="ip-video-icon">▶</span><span>${esc(m.attach.name || 'Видео')}</span></div>`).join('');
+  const actionRows = last.map(m => `<div class="ip-activity-row"><span class="ip-activity-icon">${m.attach ? '📎' : '💬'}</span><span>${esc((m.text || m.attach?.name || 'Вложение').slice(0, 90))}</span><time>${fmtList(m.ts)}</time></div>`).join('');
+  let h = `<div class="ip-head"><div class="mh"><h2>Информация</h2><button class="ico" id="ipx">${I.close}</button></div>
+    <div class="ip-hero">${userAv(p, 'lg')}<h3>${esc(p.name)}${badges(p)}</h3><small>${esc(fmtSeen(p))}</small>${p.username ? `<div class="ip-username">@${esc(p.username)}</div>` : ''}</div>
+    <div class="cacts"><button id="ip-chat">${I.chat || I.send}<span>Чат</span></button><button id="ip-mute">${I.bell}<span>${prefs(c).muted ? 'Включить звук' : 'Звук'}</span></button><button id="ip-gift">${I.gift}<span>Подарок</span></button></div></div>`;
+  h += `<section class="ip-section"><div class="ip-label">Основная информация</div>`;
+  if (p.username) h += `<div class="ip-line"><small>Имя пользователя</small><b>@${esc(p.username)}</b></div>`;
+  h += `<div class="ip-line"><small>Статус</small><b>${esc(fmtSeen(p))}</b></div>`;
+  if (p.bio) h += `<div class="ip-bio"><small>О себе</small><div>${esc(p.bio)}</div></div>`;
+  h += `</section>`;
+  h += `<section class="ip-section"><div class="ip-label">Статистика переписки</div><div class="ip-stats"><div><b>${msgs.length}</b><small>Загружено сообщений</small></div><div><b>${media.length}</b><small>Фотографий</small></div><div><b>${videos.length}</b><small>Видео</small></div><div><b>${urls.length}</b><small>Ссылок</small></div></div><div class="ip-hint">Статистика рассчитана по сообщениям, загруженным в этом чате.</div></section>`;
+  if (urls.length) h += `<section class="ip-section"><div class="ip-label">Ссылки · ${urls.length}</div>${urls.map(url => `<a class="ip-link" href="${esc(url)}" target="_blank" rel="noopener">${I.link}<span>${esc(url)}</span>${I.external || ''}</a>`).join('')}</section>`;
+  if (photoHtml || videoHtml) h += `<section class="ip-section"><div class="ip-label">Медиа</div>${photoHtml ? `<div class="ip-gallery">${photoHtml}</div>` : ''}${videoHtml}</section>`;
+  if (gifts.length) h += `<section class="ip-section"><div class="ip-label">Подарки · ${gifts.length}</div><div class="gift-row">${gifts.slice(0, 12).map(g => { const gc = giftOf(g.gift); return `<div class="gcard own" style="--c1:${gc.c1 || '#60a5fa'};--c2:${gc.c2 || '#1d4ed8'}" title="${esc(gc.name)}"><span class="ge">${gc.emoji}</span></div>`; }).join('')}</div></section>`;
+  if (actionRows) h += `<section class="ip-section"><div class="ip-label">Последняя активность</div>${actionRows}</section>`;
+  h += `<section class="ip-actions"><button class="ip-danger" id="ibl">${isBl ? 'Разблокировать' : 'Заблокировать'}</button><button class="ip-clear" id="icl">Очистить историю</button></section>`;
   return h;
 }
 function bindInfo(d, c) {
   $('#ipx', d).onclick = () => { S.info = false; $('#ip')?.remove(); };
+  $('#ip-chat', d)?.addEventListener('click', () => { $('#tx')?.focus(); });
+  $('#ip-mute', d)?.addEventListener('click', async () => { try { const muted = !prefs(c).muted; await api('/chats/prefs', { chatId: c.id, muted }); c.prefs = { ...prefs(c), muted }; renderMain(); } catch (er) { fail(er); } });
+  $('#ip-gift', d)?.addEventListener('click', () => openGifts(c.peer));
   $('#ied', d)?.addEventListener('click', () => editChatModal(c));
   $('#iadd', d)?.addEventListener('click', () => addMembersModal(c));
   $('#ilv', d)?.addEventListener('click', () => leaveChat(c));
   $('#iinv', d)?.addEventListener('click', () => inviteModal(c));
   $('#icl', d)?.addEventListener('click', () => clearHistory(c));
   $('#ibl', d)?.addEventListener('click', () => blockUser(c.peer.id, !c.blocked));
+  d.addEventListener('click', e => { const im = e.target.closest('[data-img]'); if (im) openMediaLightbox(im.src); });
   d.addEventListener('click', e => { const it = e.target.closest('[data-mem]'); if (it) openUserInfo(it.dataset.mem, c); });
   d.addEventListener('contextmenu', e => {
     const it = e.target.closest('[data-mem]'); if (!it || !isChatAdmin(c)) return; e.preventDefault(); const id = it.dataset.mem; if (id === S.me.id || id === c.owner) return;
