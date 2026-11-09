@@ -82,7 +82,7 @@ function avatarHtml(c, cls = '') {
   if (c.type === 'private' && c.peer) return userAv(S.users[c.peer.id] || c.peer, cls);
   return `<div class="av ${cls}" style="background-color:${hashColor(c.id)}">${esc(initials(c.title))}</div>`;
 }
-function userAv(u, cls = '') { return `<div class="av ${cls}" style="background-color:${esc(u.color)}">${esc(initials(u.name))}${u.online ? '<i class="on-dot"></i>' : ''}</div>`; }
+function userAv(u, cls = '') { const pic = u.avatar && /^data:image\/(png|jpeg|webp|gif);base64,/.test(u.avatar) ? `<img class="av-img" src="${esc(u.avatar)}" alt="">` : esc(initials(u.name)); return `<div class="av ${cls}" style="background-color:${esc(u.color)}">${pic}${u.online ? '<i class="on-dot"></i>' : ''}</div>`; }
 
 /* ---------- Звук и уведомления ---------- */
 let actx;
