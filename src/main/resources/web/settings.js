@@ -38,7 +38,7 @@ applySettings();
 
 function openSettings(tab) {
   const stack = [tab === 'privacy' ? 'privacy' : tab === 'profile' ? 'account' : 'root'];
-  const mb = modal(''), m = $('.modal', mb); m.classList.add('tgs');
+  const mb = modal(''), m = $('.modal', mb); m.classList.add('tgs'); if (tab === 'profile') m.classList.add('profile-editor');
   const _close0 = mb.close; mb.close = () => { if (m._cl) { m._cl(); m._cl = null; } _close0(); };
   let color = S.me.color, searching = false;
   const st = () => S.settings, cur = () => stack[stack.length - 1];
@@ -78,17 +78,40 @@ function openSettings(tab) {
     }),
 
     account: () => ({
-      t: 'Мой аккаунт',
-      h: `<div class="pad"><div style="display:flex;gap:14px;align-items:center">${userAv(S.me, 'lg').replace('<i class="on-dot"></i>', '')}<div><b>${esc(fmtPhone(S.me.phone))}</b><div class="mu">ID ${esc(S.me.id)}</div></div></div>
-      <div class="profile-avatar-edit">${userAv(S.me, 'lg')}<div><label class="btn ghost" for="avatar-file">Изменить аватар</label><input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden><small>PNG, JPEG, WebP или GIF · до 300 КБ</small><button class="btn ghost" id="avatar-clear" type="button">Убрать фото</button></div></div>
-      <label class="field">Имя<input id="pn" maxlength="64" value="${esc(S.me.name)}"></label><label class="field">Имя пользователя<input id="pu" maxlength="32" placeholder="@username" value="${S.me.username ? '@' + esc(S.me.username) : ''}"></label>
-      <label class="field">О себе<textarea id="pb" maxlength="${S.me.premium ? 500 : 200}" rows="2">${esc(S.me.bio)}</textarea></label><div class="sw" id="sw">${(S.me.premium ? COLORS.concat(PCOLORS) : COLORS).map(c => `<button data-c="${c}" style="background:${c}" class="${c === color ? 'on' : ''}"></button>`).join('')}</div>
-      <div class="err" id="pe"></div><button class="btn" id="ps">Сохранить</button></div>`,
+      t: 'Информация',
+      h: `<div class="profile-edit-page">
+        <div class="profile-edit-hero">
+          <button class="profile-photo-btn" id="profile-photo-open" type="button" title="Открыть фотографию">${userAv(S.me, 'profile-photo').replace('<i class="on-dot"></i>', '')}</button>
+          <label class="profile-camera" for="avatar-file" title="Изменить фотографию">${I.edit}</label>
+          <input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+          <h2>${esc(S.me.name)}${badges(S.me)}</h2>
+          <small>${S.me.username ? '@' + esc(S.me.username) : 'Имя пользователя не задано'}</small>
+        </div>
+        <div class="profile-edit-list">
+          <label class="profile-row"><span>Имя</span><input id="pn" maxlength="64" value="${esc(S.me.name)}"></label>
+          <div class="profile-row readonly"><span>Номер телефона</span><b>${esc(fmtPhone(S.me.phone))}</b></div>
+          <label class="profile-row"><span>Имя пользователя</span><input id="pu" maxlength="32" placeholder="@username" value="${S.me.username ? '@' + esc(S.me.username) : ''}"></label>
+          <label class="profile-row profile-row-about"><span>О себе</span><textarea id="pb" maxlength="${S.me.premium ? 500 : 200}" rows="3" placeholder="Любые подробности о себе">${esc(S.me.bio || '')}</textarea></label>
+          <div class="profile-row readonly"><span>Личный канал</span><b>Не указан</b></div>
+          <div class="profile-row"><span>Цвет имени</span><div class="sw profile-sw" id="sw">${(S.me.premium ? COLORS.concat(PCOLORS) : COLORS).map(c => `<button type="button" data-c="${c}" style="background:${c}" class="${c === color ? 'on' : ''}" aria-label="${c}"></button>`).join('')}</div></div>
+        </div>
+        <div class="profile-avatar-actions"><label class="btn ghost" for="avatar-file">Изменить фотографию</label><button class="btn ghost" id="avatar-clear" type="button">Удалить фотографию</button><small>PNG, JPEG, WebP или GIF · до 300 КБ</small></div>
+        <div class="err" id="pe"></div><button class="btn profile-save" id="ps">Сохранить</button>
+      </div>`,
       b: () => {
         let avatar = S.me.avatar || '';
         const fileInput = $('#avatar-file', m);
-        fileInput.onchange = () => { const f = fileInput.files?.[0]; if (!f) return; if (f.size > 300 * 1024) { toast('Максимальный размер аватара — 300 КБ', true); fileInput.value = ''; return; } const r = new FileReader(); r.onload = () => { avatar = String(r.result); const old = $('.profile-avatar-edit .av', m); if (old) old.outerHTML = userAv({ ...S.me, avatar }, 'lg'); }; r.readAsDataURL(f); };
-        $('#avatar-clear', m).onclick = () => { avatar = ''; const old = $('.profile-avatar-edit .av', m); if (old) old.outerHTML = userAv({ ...S.me, avatar: '' }, 'lg'); };
+        const refreshAvatar = () => {
+          const holder = $('#profile-photo-open', m);
+          if (holder) holder.innerHTML = userAv({ ...S.me, avatar }, 'profile-photo').replace('<i class="on-dot"></i>', '');
+          $('#profile-photo-open', m)?.classList.toggle('has-photo', !!avatar);
+        };
+        fileInput.onchange = () => { const f = fileInput.files?.[0]; if (!f) return; if (f.size > 300 * 1024) { toast('Максимальный размер аватара — 300 КБ', true); fileInput.value = ''; return; } const r = new FileReader(); r.onload = () => { avatar = String(r.result); refreshAvatar(); }; r.readAsDataURL(f); };
+        $('#avatar-clear', m).onclick = () => { avatar = ''; refreshAvatar(); };
+        $('#profile-photo-open', m)?.addEventListener('click', () => {
+          const img = $('.av-img', $('#profile-photo-open', m));
+          if (img) openMediaLightbox(img.src);
+        });
         $$('#sw [data-c]', m).forEach(b => b.onclick = () => { color = b.dataset.c; $$('#sw [data-c]', m).forEach(x => x.classList.toggle('on', x === b)); });
         $('#ps', m).onclick = async () => { try { S.me = { ...S.me, ...(await api('/me/update', { name: $('#pn', m).value, username: $('#pu', m).value, bio: $('#pb', m).value, color, avatar })) }; toast('Профиль сохранён'); loadChats(); } catch (er) { $('#pe', m).textContent = er.message; } };
       },
