@@ -778,37 +778,6 @@ final class Core {
     synchronized Object userInfo(String uid, String target) {
         Map<String, Object> u = user(target);
         Map<String, Object> v = pub(u);
-        // Номер показывается только если владелец не скрыл его в настройках приватности.
-        if (uid.equals(target) || !"nobody".equals(priv(u, "phone"))) v.put("phone", u.get("phone"));
-
-        // Общая история доступна только участникам личного чата; скрытые сообщения не учитываются.
-        for (Map<String, Object> c : chats.values()) {
-            List<Object> members = l(c.get("members"));
-            if (!"private".equals(s(c.get("type"))) || !members.contains(uid) || !members.contains(target)) continue;
-            String cid = s(c.get("id"));
-            List<Map<String, Object>> all = messages.getOrDefault(cid, List.of());
-            int photos = 0, videos = 0, visibleCount = 0;
-            LinkedHashSet<String> links = new LinkedHashSet<>();
-            List<Object> recent = new ArrayList<>();
-            for (int i = all.size() - 1; i >= 0; i--) {
-                Map<String, Object> msg = all.get(i);
-                if (hiddenFor(msg, uid)) continue;
-                visibleCount++;
-                String text = s(msg.get("text"));
-                java.util.regex.Matcher lm = Pattern.compile("https?://[^\\s<>]+", Pattern.CASE_INSENSITIVE).matcher(text);
-                while (lm.find() && links.size() < 30) links.add(lm.group());
-                if (msg.get("attach") instanceof Map<?, ?>) {
-                    String type = s(m(msg.get("attach")).get("type")).toLowerCase(Locale.ROOT);
-                    if (type.contains("image") || type.contains("photo")) photos++;
-                    if (type.contains("video")) videos++;
-                }
-                if (recent.size() < 8) recent.add(forUser(msg, uid));
-            }
-            Collections.reverse(recent);
-            v.put("shared", obj("chatId", cid, "messageCount", visibleCount, "photos", photos, "videos", videos,
-                    "links", new ArrayList<>(links), "recent", recent));
-            break;
-        }
         return v;
     }
 
@@ -1339,7 +1308,7 @@ final class Core {
     }
 
     synchronized Object setPrivacy(String uid, String key, String val) {
-        if (!Set.of("lastSeen", "about", "gifts", "phoneSearch", "phone").contains(key)) throw new Api(400, "Неизвестная настройка");
+        if (!Set.of("lastSeen", "about", "gifts", "phoneSearch").contains(key)) throw new Api(400, "Неизвестная настройка");
         if (!val.equals("all") && !val.equals("nobody")) throw new Api(400, "Неверное значение");
         Map<String, Object> u = user(uid);
         Map<String, Object> p = u.get("privacy") instanceof Map<?, ?> ? m(u.get("privacy")) : new LinkedHashMap<>();
