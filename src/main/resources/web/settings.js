@@ -80,12 +80,17 @@ function openSettings(tab) {
     account: () => ({
       t: 'Мой аккаунт',
       h: `<div class="pad"><div style="display:flex;gap:14px;align-items:center">${userAv(S.me, 'lg').replace('<i class="on-dot"></i>', '')}<div><b>${esc(fmtPhone(S.me.phone))}</b><div class="mu">ID ${esc(S.me.id)}</div></div></div>
+      <div class="profile-avatar-edit">${userAv(S.me, 'lg')}<div><label class="btn ghost" for="avatar-file">Изменить аватар</label><input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden><small>PNG, JPEG, WebP или GIF · до 300 КБ</small><button class="btn ghost" id="avatar-clear" type="button">Убрать фото</button></div></div>
       <label class="field">Имя<input id="pn" maxlength="64" value="${esc(S.me.name)}"></label><label class="field">Имя пользователя<input id="pu" maxlength="32" placeholder="@username" value="${S.me.username ? '@' + esc(S.me.username) : ''}"></label>
       <label class="field">О себе<textarea id="pb" maxlength="${S.me.premium ? 500 : 200}" rows="2">${esc(S.me.bio)}</textarea></label><div class="sw" id="sw">${(S.me.premium ? COLORS.concat(PCOLORS) : COLORS).map(c => `<button data-c="${c}" style="background:${c}" class="${c === color ? 'on' : ''}"></button>`).join('')}</div>
       <div class="err" id="pe"></div><button class="btn" id="ps">Сохранить</button></div>`,
       b: () => {
+        let avatar = S.me.avatar || '';
+        const fileInput = $('#avatar-file', m);
+        fileInput.onchange = () => { const f = fileInput.files?.[0]; if (!f) return; if (f.size > 300 * 1024) { toast('Максимальный размер аватара — 300 КБ', true); fileInput.value = ''; return; } const r = new FileReader(); r.onload = () => { avatar = String(r.result); const old = $('.profile-avatar-edit .av', m); if (old) old.outerHTML = userAv({ ...S.me, avatar }, 'lg'); }; r.readAsDataURL(f); };
+        $('#avatar-clear', m).onclick = () => { avatar = ''; const old = $('.profile-avatar-edit .av', m); if (old) old.outerHTML = userAv({ ...S.me, avatar: '' }, 'lg'); };
         $$('#sw [data-c]', m).forEach(b => b.onclick = () => { color = b.dataset.c; $$('#sw [data-c]', m).forEach(x => x.classList.toggle('on', x === b)); });
-        $('#ps', m).onclick = async () => { try { S.me = { ...S.me, ...(await api('/me/update', { name: $('#pn', m).value, username: $('#pu', m).value, bio: $('#pb', m).value, color })) }; toast('Профиль сохранён'); loadChats(); } catch (er) { $('#pe', m).textContent = er.message; } };
+        $('#ps', m).onclick = async () => { try { S.me = { ...S.me, ...(await api('/me/update', { name: $('#pn', m).value, username: $('#pu', m).value, bio: $('#pb', m).value, color, avatar })) }; toast('Профиль сохранён'); loadChats(); } catch (er) { $('#pe', m).textContent = er.message; } };
       },
     }),
 
