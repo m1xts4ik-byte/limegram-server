@@ -238,6 +238,7 @@ function renderFolders() {
   const on = $('.on', el), bar = $('.bar', el); if (on && bar) { bar.style.left = (on.offsetLeft + 10) + 'px'; bar.style.width = (on.offsetWidth - 20) + 'px'; }
 }
 function previewOf(m) {
+  if (m.gift) return '🎁 Подарок' + (m.gift.name ? ': ' + m.gift.name : '');
   if (m.text) return m.text;
   if (m.poll) return '📊 ' + m.poll.q;
   if (m.attach) { const t = String(m.attach.type); return t.startsWith('image/') ? 'Фото' : t.startsWith('audio/') ? 'Голосовое сообщение' : t.startsWith('video/') ? 'Видео' : m.attach.name; }
@@ -708,13 +709,32 @@ async function openUserInfo(id, ctxChat) {
   await catalog().catch(() => { });
   let u; try { u = await api('/users/info?id=' + encodeURIComponent(id)); cacheUsers([u]); } catch (er) { return fail(er); }
   const pc = S.chats.find(x => x.type === 'private' && x.peer && x.peer.id === id), isBl = !!(pc && pc.blocked);
-  const mb = modal(`<div class="mh"><h2>Профиль</h2><button class="ico" id="cx">${I.close}</button></div><div class="ph" style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center">${userAv(u, 'lg')}<h3 style="margin:6px 0 0;font-size:19px">${esc(u.name)}${badges(u)}</h3><small style="color:var(--muted)">${esc(fmtSeen(u))}</small></div>
-    ${u.username ? `<div class="kv" style="padding:10px 0"><small style="color:var(--muted)">Имя пользователя</small>@${esc(u.username)}</div>` : ''}${u.bio ? `<div class="kv" style="padding:10px 0"><small style="color:var(--muted)">О себе</small>${esc(u.bio)}</div>` : ''}
-    ${(u.gifts && u.gifts.length) ? `<div class="kv" style="padding:10px 0"><small style="color:var(--muted)">Подарки</small><div class="gift-row" style="margin-top:6px">${u.gifts.slice(0, 20).map(g => { const c = giftOf(g.gift); return `<div class="gcard own" style="--c1:${c.c1 || '#60a5fa'};--c2:${c.c2 || '#1d4ed8'}" title="${esc(c.name)}">${g.total ? `<i class="gl">№${g.num} из ${fmtN(g.total)}</i>` : ''}<span class="ge">${c.emoji}</span></div>`; }).join('')}</div></div>` : ''}
-    ${id !== S.me.id ? '<button class="btn" id="wr" style="margin-top:8px">Написать сообщение</button><button class="btn ghost" id="gfb" style="margin-top:8px">🎁 Подарить подарок</button>' : ''}
-    ${id !== S.me.id ? `<button class="btn ghost" id="bk" style="margin-top:8px;${isBl ? '' : 'color:var(--danger)'}">${isBl ? 'Разблокировать' : 'Заблокировать'}</button>` : ''}`);
-
+  const sh = u.shared || null;
+  const links = [...new Set([...(sh?.links || []), ...((u.bio || '').match(/https?:\/\/[^\s<>]+/g) || [])])].slice(0, 30);
+  const recent = (sh?.recent || []).slice(-6);
+  const phoneHtml = u.phone ? `<button class="up-phone" id="upPhone"><span class="up-symbol">☎</span><span><small>Телефон</small><b>${esc(fmtPhone(u.phone))}</b></span><span class="up-copy">Копировать</span></button>` : '';
+  const linkHtml = links.length ? `<div class="up-section"><div class="up-heading"><span>Ссылки</span><small>${links.length}</small></div><div class="up-links">${links.map((x, i) => `<a href="${esc(x)}" target="_blank" rel="noopener noreferrer"><span class="up-symbol">↗</span><span>${esc(x.replace(/^https?:\/\//, '').slice(0, 72))}</span></a>`).join('')}</div></div>` : '';
+  const recentHtml = recent.length ? `<div class="up-section"><div class="up-heading"><span>Недавнее в переписке</span><small>${recent.length}</small></div><div class="up-recent">${recent.map(msg => `<div class="up-msg"><small>${msg.from === S.me.id ? 'Вы' : esc(u.name)} · ${fmtTime(msg.ts)}</small><div>${msg.attach ? '📎 ' + esc(msg.attach.name || 'Вложение') : formatText((msg.text || 'Сообщение').slice(0, 180))}</div></div>`).join('')}</div></div>` : '';
+  const mb = modal(`<div class="up-profile">
+    <div class="up-top"><button class="ico" id="cx">${I.close}</button><span>ПРОФИЛЬ LIMEGRAM</span><button class="ico" id="upMore" title="Дополнительно">•••</button></div>
+    <div class="up-hero">${userAv(u, 'lg')}<div class="up-name">${esc(u.name)}${badges(u)}</div><div class="up-pres"><i class="${u.online ? 'is-online' : ''}"></i>${esc(fmtSeen(u))}</div>${u.username ? `<div class="up-username">@${esc(u.username)}</div>` : ''}</div>
+    <div class="up-actions">${id !== S.me.id ? `<button class="up-primary" id="wr">✉ Написать</button><button id="gfb">🎁 Подарок</button>` : `<button class="up-primary" id="upEdit">✎ Изменить профиль</button>`}</div>
+    <div class="up-body">
+      ${u.bio ? `<div class="up-section"><div class="up-heading">О себе</div><div class="up-bio">${esc(u.bio)}</div></div>` : ''}
+      ${phoneHtml}
+      <div class="up-section"><div class="up-heading">Ваши общие моменты</div>
+        ${sh ? `<div class="up-stats"><div><b>${sh.messageCount || 0}</b><small>сообщений</small></div><div><b>${sh.photos || 0}</b><small>фото</small></div><div><b>${sh.videos || 0}</b><small>видео</small></div><div><b>${(sh.links || []).length}</b><small>ссылок</small></div></div>
+        <button class="up-open-chat" id="upOpenChat">Открыть вашу переписку <span>→</span></button>` : `<div class="up-empty">Пока нет общей личной переписки. Когда вы начнёте общаться, здесь появятся общие сообщения, медиа и ссылки.</div>`}
+      </div>
+      ${linkHtml}${recentHtml}
+      ${(u.gifts && u.gifts.length) ? `<div class="up-section"><div class="up-heading">Подарки <small>${u.gifts.length}</small></div><div class="gift-row">${u.gifts.slice(0, 20).map(g => { const c = giftOf(g.gift); return `<div class="gcard own" style="--c1:${c.c1 || '#60a5fa'};--c2:${c.c2 || '#1d4ed8'}" title="${esc(c.name)}">${g.total ? `<i class="gl">№${g.num} из ${fmtN(g.total)}</i>` : ''}<span class="ge">${c.emoji}</span></div>`; }).join('')}</div></div>` : ''}
+      <div class="up-footer">${id !== S.me.id ? `<button class="up-danger" id="bk">${isBl ? 'Разблокировать пользователя' : 'Заблокировать пользователя'}</button>` : ''}</div>
+    </div></div>`);
   $('#cx', mb).onclick = mb.close;
+  $('#upPhone', mb)?.addEventListener('click', () => { if (u.phone) { navigator.clipboard?.writeText(fmtPhone(u.phone)).then(() => toast('Номер скопирован')).catch(() => toast(fmtPhone(u.phone))); } });
+  $('#upOpenChat', mb)?.addEventListener('click', async () => { try { const c = sh?.chatId ? { id: sh.chatId } : await api('/chats/open-private', { userId: id }); mb.close(); await loadChats(); openChat(c.id); } catch (er) { fail(er); } });
+  $('#upMore', mb)?.addEventListener('click', () => toast('Дополнительные действия доступны в меню контакта'));
+  $('#upEdit', mb)?.addEventListener('click', () => { mb.close(); openSettings('profile'); });
   $('#bk', mb)?.addEventListener('click', () => { mb.close(); blockUser(id, !isBl); });
   $('#gfb', mb)?.addEventListener('click', () => { mb.close(); openGifts(u); });
   $('#wr', mb)?.addEventListener('click', async () => { try { const c = await api('/chats/open-private', { userId: id }); mb.close(); await loadChats(); openChat(c.id); } catch (er) { fail(er); } });
