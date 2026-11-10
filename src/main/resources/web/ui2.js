@@ -17,7 +17,10 @@ const _startApp2 = startApp;
 startApp = function () {
   if (_ui2Back) { _ui2Back.remove(); _ui2Back = null; }
   if (S.token && S.me) rememberAcct(S.token, S.me);
-  return _startApp2.apply(this, arguments);
+  const r = _startApp2.apply(this, arguments);
+  const ua = navigator.userAgent, br = /Edg\//.test(ua) ? 'Edge' : /Electron/.test(ua) ? 'LimeGram Desktop' : /Chrome/.test(ua) ? 'Chrome' : /Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'Браузер', os = /Windows/.test(ua) ? 'Windows' : /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Mac/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : '';
+  api('/me/session-label', { label: br + (os ? ', ' + os : '') }).catch(() => { });
+  return r;
 };
 const _localLogout2 = localLogout;
 localLogout = function () {
@@ -77,7 +80,7 @@ infoPanel = function (c) {
   <div class="ph">${avatarHtml(c, 'lg')}<h3>${esc(title(c))}</h3><small>${plN(n, SUBS)}</small></div>
   <div class="cacts"><button id="cSnd">${p.muted ? I.mute : I.bell}<span>Звук</span></button><button id="cDisc">${I.chat}<span>Обсуждение</span></button>${adm ? `<button id="cMng">${I.sliders}<span>Управление</span></button>` : ''}</div>
   ${c.about ? `<div class="kv"><small>Описание</small>${esc(c.about)}</div>` : ''}
-  ${adm ? `<button class="crow lnk2" id="cLink">${I.link}<span>Ссылка-приглашение<small>Нажмите, чтобы открыть ссылку</small></span></button>` : ''}
+  ${adm || c.username ? `<button class="crow lnk2" id="cLink">${I.link}<span>${c.username ? 'limegram://u/' + esc(c.username) : 'Ссылка-приглашение'}<small>${c.username ? 'Нажмите, чтобы скопировать' : 'Нажмите, чтобы открыть ссылку'}</small></span></button>` : ''}
   <div class="cgrp"><button class="crow" id="cSub">${I.users}<span>${plN(n, SUBS)}</span>${adm ? `<i class="rt" id="cAdd" title="Добавить подписчика">${I.plus}</i>` : ''}</button>
   <button class="crow" id="cAdm">${I.shield}<span>${plN(na, ADMS)}</span></button></div>
   <div class="cgrp"><button class="crow" id="cClr">${I.trash}<span>Очистить историю</span></button><button class="crow red" id="cLv">${I.logout}<span>Покинуть канал</span></button></div>`;
@@ -88,7 +91,7 @@ bindInfo = function (d, c) {
   $('#cSnd', d).onclick = async () => { const mute = !prefs(chat(c.id) || c).muted; try { await api('/chats/prefs', { chatId: c.id, muted: mute }); await loadChats(); refreshInfo(c); toast(mute ? 'Уведомления отключены' : 'Уведомления включены'); } catch (er) { fail(er); } };
   $('#cDisc', d).onclick = () => toast('У этого канала нет группы обсуждения');
   $('#cMng', d)?.addEventListener('click', () => manageChannel(c));
-  $('#cLink', d)?.addEventListener('click', () => inviteModal(c));
+  $('#cLink', d)?.addEventListener('click', () => isChatAdmin(c) ? inviteModal(c) : copyText('limegram://u/' + c.username));
   $('#cSub', d).onclick = e => { if (e.target.closest('#cAdd')) addMembersModal(c); else subsModal(c); };
   $('#cAdm', d).onclick = () => adminsModal(c);
   $('#cClr', d).onclick = () => clearHistory(c);
@@ -153,7 +156,7 @@ function manageChannel(c0) {
   <div class="tb"><div class="pg">
     <div class="top">${avatarHtml(c, 'lg')}<label class="fl"><small>Название канала</small><input id="mgT" maxlength="64" value="${esc(c.title)}"></label></div>
     <textarea id="mgA" class="desc" rows="2" maxlength="200" placeholder="Описание (необязательно)">${esc(c.about || '')}</textarea>
-    <div class="grp">${R('soon', 'sliders', 'Тип канала', 'Частный')}${R('soon', 'chat', 'Обсуждение', 'Нет')}${R('soon', 'chat', 'Сообщения каналу', 'Выкл.', { badge: 1 })}${R('soon', 'palette', 'Оформление', `<b class="chip">${esc(c.title)}</b>`)}${TG('soon', 'globe', 'Переводить сообщения')}${TG('soon', 'edit', 'Подписывать сообщения')}</div>
+    <div class="grp">${R('type', 'sliders', 'Тип канала', c.username ? 'Публичный' : 'Частный')}${R('soon', 'chat', 'Обсуждение', 'Нет')}${R('soon', 'chat', 'Сообщения каналу', 'Выкл.', { badge: 1 })}${R('soon', 'palette', 'Оформление', `<b class="chip">${esc(c.title)}</b>`)}${TG('soon', 'globe', 'Переводить сообщения')}${TG('soon', 'edit', 'Подписывать сообщения')}</div>
     <div class="hint">Добавлять имена администраторов к их сообщениям в канале.</div>
     <div class="grp0">${R('soon', 'smileplus', 'Реакции', 'Все')}${R('soon', 'smile', 'Приветственное сообщение', 'Выкл.')}${R('link', 'link', 'Пригласительные ссылки', 1)}${R('adm', 'shield', 'Администраторы', c.admins.length)}${R('sub', 'users', 'Подписчики', c.members.length)}${R('soon', 'ban', 'Чёрный список')}${R('soon', 'file', 'Недавние действия')}${R('soon', 'star', 'Партнёрские программы')}</div>
     <div class="grp">${R('soon', 'users', 'Добавить канал в сообщество')}<div class="hint" style="margin:0">Вы можете добавить канал в сообщество чатов, связанных между собой.</div></div>
@@ -162,8 +165,8 @@ function manageChannel(c0) {
   <div class="mfoot"><button id="mgC">Отмена</button><button id="mgS">Сохранить</button></div>`;
   m.onclick = e => {
     const b = e.target.closest('[data-g]'); if (!b) return; const g = b.dataset.g;
-    if (g === 'link') inviteModal(c); else if (g === 'adm') adminsModal(c); else if (g === 'sub') subsModal(c);
-    else if (g === 'del') toast('Удаление канала пока недоступно на сервере', true); else soon();
+    if (g === 'link') inviteModal(c); else if (g === 'type') typeModal(c, mb); else if (g === 'adm') adminsModal(c); else if (g === 'sub') subsModal(c);
+    else if (g === 'del') delChat(c, mb); else soon();
   };
   $('#mgC', m).onclick = mb.close;
   $('#mgS', m).onclick = async () => {
