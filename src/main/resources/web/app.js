@@ -4,7 +4,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const PLANE = '<rect x="13" y="15" width="38" height="28" rx="11" fill="#fff"/><path d="M19 39l-2 11 13-8z" fill="#fff"/><g fill="none" stroke="#2a7fe0" stroke-width="1.9" stroke-linecap="round"><circle cx="32" cy="29" r="9.5"/><path d="M32 29L39.19 33.15" stroke-width="1.6"/><path d="M32 29L32.00 37.30" stroke-width="1.6"/><path d="M32 29L24.81 33.15" stroke-width="1.6"/><path d="M32 29L24.81 24.85" stroke-width="1.6"/><path d="M32 29L32.00 20.70" stroke-width="1.6"/><path d="M32 29L39.19 24.85" stroke-width="1.6"/></g><circle cx="32" cy="29" r="1.6" fill="#2a7fe0"/>';
-const LOGO = '<svg viewBox="0 0 64 64" class="logo"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4fb2ff"/><stop offset="1" stop-color="#2a7fe0"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#lg)"/>' + PLANE + '</svg>';
+const LOGO = '<img class="logo" src="/logo.png" alt="LimeGram" draggable="false">';
 const COLORS = ['#3390ec', '#2eaadc', '#7b61ff', '#e0568a', '#f08c3a', '#e5484d', '#14a3a3', '#8e6bd1'];
 const ACCENTS = ['#3390ec', '#2eaadc', '#7b61ff', '#e0568a', '#f08c3a', '#e5484d'];
 const REACTS = ['👍', '❤️', '🔥', '😂', '😮', '😢', '🎉', '👎'];
@@ -66,6 +66,7 @@ function formatText(t) {
   h = h.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/__([^_\n]+)__/g, '<i>$1</i>').replace(/~~([^~\n]+)~~/g, '<s>$1</s>').replace(/\|\|([^|\n]+)\|\|/g, '<span class="sp">$1</span>')
     .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
     .replace(/limegram:\/\/join\/([A-Za-z0-9]{6,32})/g, '<a href="#" class="jl" data-join="$1">limegram://join/$1</a>')
+    .replace(/limegram:\/\/u\/([A-Za-z][A-Za-z0-9_]{3,31})/g, '<a href="#" class="jl" data-join="@$1">limegram://u/$1</a>')
     .replace(/(^|[\s(])@([A-Za-z0-9_]{3,32})(?![\w])/g, '$1<span class="men" data-mention="$2">@$2</span>');
   return h.replace(/\u0000(\d+)\u0000/g, (_, i) => codes[+i]);
 }
@@ -194,7 +195,7 @@ function startApp() {
   let tm;
   $('#q').oninput = e => {
     S.filter = e.target.value.trim(); renderList(); clearTimeout(tm);
-    if (S.filter.length >= 2) tm = setTimeout(async () => { try { S.found = await api('/users/search?q=' + encodeURIComponent(S.filter)); cacheUsers(S.found); renderList(); } catch { } }, 300); else S.found = [];
+    if (S.filter.length >= 2) tm = setTimeout(async () => { try { S.found = await api('/users/search?q=' + encodeURIComponent(S.filter)); cacheUsers(S.found); S.pub = await api('/chats/public?q=' + encodeURIComponent(S.filter)).catch(() => []); renderList(); } catch { } }, 300); else S.found = [];
   };
   $('#cl').onclick = onListClick;
   $('#cl').oncontextmenu = onListCtx;
@@ -259,12 +260,14 @@ function renderList() {
       <div class="row"><span class="pv ${typing ? 'typing' : ''}">${esc(pv)}</span>${c.mentions ? '<span class="badge men2">@</span>' : ''}${c.unread ? `<span class="badge ${p.muted ? 'muted' : ''}">${c.unread}</span>` : p.unreadMark ? '<span class="badge dot ' + (p.muted ? 'muted' : '') + '"></span>' : p.pinned ? I.pin.replace('class="ic"', 'class="ic mini"') : ''}</div></div></div>`;
   }).join('');
   if (f) { const people = S.found.filter(u => u.id !== S.me.id); h += `<div class="sect">Люди</div>` + (people.length ? people.map(u => `<div class="item" data-user="${esc(u.id)}">${userAv(u)}<div class="mid"><div class="t">${esc(u.name)}${badges(u)}</div><div class="pv">${u.username ? '@' + esc(u.username) : ' '}</div></div></div>`).join('') : '<div class="sect" style="color:var(--muted)">Ничего не найдено</div>'); }
+  if (f && (S.pub || []).length) h += `<div class="sect">Каналы и группы</div>` + S.pub.map(x => `<div class="item" data-pub="${esc(x.username)}"><div class="av" style="background-color:${hashColor(x.id)}">${esc(initials(x.title))}</div><div class="mid"><div class="t">${esc(x.title)}</div><div class="pv">@${esc(x.username)} · ${x.count} ${x.type === 'channel' ? 'подписч.' : 'участн.'}</div></div></div>`).join('');
   el.innerHTML = h || `<div class="empty">Здесь пока пусто.<br>Нажмите на карандаш, чтобы начать чат.</div>`;
 }
 async function onListClick(e) {
   const it = e.target.closest('.item'); if (!it) return;
   if (it.dataset.chat) return openChat(it.dataset.chat);
   if (it.dataset.user) { try { const c = await api('/chats/open-private', { userId: it.dataset.user }); await loadChats(); $('#q').value = ''; S.filter = ''; S.found = []; renderList(); openChat(c.id); } catch (er) { fail(er); } }
+  if (it.dataset.pub) { const n = it.dataset.pub; if (await confirmBox('Вступить в «' + n + '»?', 'Вступить')) { $('#q').value = ''; S.filter = ''; S.found = []; S.pub = []; renderList(); joinByLink('@' + n); } }
 }
 function onListCtx(e) {
   const it = e.target.closest('[data-chat]'); if (!it) return; e.preventDefault();
@@ -555,7 +558,7 @@ async function onMsgClick(e) {
   const mn = e.target.closest('[data-mention]'); if (mn) {
     const nm = mn.dataset.mention.toLowerCase();
     if ((S.me.username || '').toLowerCase() === nm) return openUserInfo(S.me.id);
-    try { const r = await api('/users/search?q=' + encodeURIComponent('@' + nm)); const u = r.find(x => (x.username || '').toLowerCase() === nm); if (u) openUserInfo(u.id); else toast('Пользователь @' + mn.dataset.mention + ' не найден', true); } catch (er) { fail(er); }
+    try { const r = await api('/users/search?q=' + encodeURIComponent('@' + nm)); const u = r.find(x => (x.username || '').toLowerCase() === nm); if (u) openUserInfo(u.id); else { const pc = await api('/chats/public?q=' + encodeURIComponent(nm)); const ch = pc.find(x => x.username.toLowerCase() === nm); if (ch) { if (ch.joined) { await loadChats(); const cc = S.chats.find(z => z.id === ch.id); if (cc) openChat(cc.id); } else if (await confirmBox('Вступить в «' + ch.title + '»?', 'Вступить')) joinByLink('@' + ch.username); } else toast('@' + mn.dataset.mention + ' не найден', true); } } catch (er) { fail(er); }
     return;
   }
   const po = e.target.closest('[data-po]'); if (po && !po.disabled) {
@@ -679,6 +682,8 @@ function infoPanel(c) {
   if (!p) {
     let h = `<div class="mh" style="padding:10px 14px;margin:0"><h2>Информация</h2><button class="ico" id="ipx">${I.close}</button></div><div class="ph">${avatarHtml(c, 'lg')}<h3>${esc(title(c))}</h3><small>${esc(statusText(c).t)}</small></div>`;
     if (c.about) h += `<div class="kv"><small>Описание</small>${esc(c.about)}</div>`;
+    if (c.username) h += `<div class="kv"><small>Ссылка</small>limegram://u/${esc(c.username)}</div>`;
+    if ((c.type === 'group' || c.type === 'channel') && isChatAdmin(c)) h += `<div class="kv" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn small ghost" id="ied" style="flex:1">Изменить</button><button class="btn small ghost" id="iadd" style="flex:1">Добавить</button><button class="btn small ghost" id="iinv" style="flex:1">Ссылка</button></div>`;
     h += `<div class="kv"><button class="btn small ghost" id="icl" style="width:100%">Очистить историю</button></div>`;
     if (c.type === 'group' || c.type === 'channel') h += `<div class="sect">Участники · ${c.members.length}</div>` + c.members.map(m => { const u = S.users[m.id] || m; return `<div class="item" data-mem="${esc(m.id)}">${userAv(u, 'sm')}<div class="mid"><div class="t">${esc(u.name)}${badges(u)}</div><div class="pv">${c.owner === m.id ? 'владелец' : c.admins.includes(m.id) ? 'админ' : fmtSeen(u)}</div></div></div>`; }).join('');
     if (c.type === 'group' || c.type === 'channel') h += `<div class="kv"><button class="btn small danger" id="ilv" style="width:100%">${c.type === 'group' ? 'Покинуть группу' : 'Покинуть канал'}</button></div>`;
@@ -803,7 +808,7 @@ function openNewChat(t0 = 'private') {
     }
     m.innerHTML = `<div class="mh"><h2>Новый чат</h2><button class="ico" id="cx">${I.close}</button></div>
       <div class="tabs">${[['private', 'Личный'], ['group', 'Группа'], ['channel', 'Канал'], ['join', 'По ссылке']].map(([k, v]) => `<button data-t="${k}" class="${tab === k ? 'on' : ''}">${v}</button>`).join('')}</div>
-      ${tab !== 'private' ? '<label class="field">Название<input id="nt" maxlength="64"></label>' : ''}
+      ${tab !== 'private' ? `<label class="field">Название<input id="nt" maxlength="64"></label><label class="field">Публичная ссылка (необязательно)<input id="nu" maxlength="32" placeholder="username" autocomplete="off" value="${esc(m._u || '')}"></label><div class="un-st" id="nus"></div>` : ''}
       <label class="field">${tab === 'private' ? 'Найти человека' : 'Добавить участников'}<input id="ns" placeholder="Имя, @username или номер телефона" autocomplete="off"></label>
       ${tab !== 'private' && picked.size ? `<div class="chips">${[...picked.values()].map(u => `<span class="chip" data-rm="${esc(u.id)}">${esc(u.name)} ✕</span>`).join('')}</div>` : ''}
       <div id="nr">${res.map(row).join('')}</div>${tab !== 'private' ? `<div class="err" id="ne"></div><button class="btn" id="nc">Создать ${tab === 'group' ? 'группу' : 'канал'}</button>` : ''}`;
@@ -817,8 +822,9 @@ function openNewChat(t0 = 'private') {
       if (tab === 'private') { try { const c = await api('/chats/open-private', { userId: it.dataset.u }); mb.close(); await loadChats(); openChat(c.id); } catch (er) { fail(er); } }
       else { picked.set(it.dataset.u, S.users[it.dataset.u]); const t = $('#nt', m).value; draw(); $('#nt', m).value = t; }
     };
+    if ($('#nu', m)) { unameBind(m, '#nu', '#nus', ''); $('#nu', m).addEventListener('input', e => m._u = e.target.value); }
     const nc = $('#nc', m);
-    if (nc) nc.onclick = async () => { try { const c = await api('/chats/create', { type: tab, title: $('#nt', m).value, members: [...picked.keys()] }); mb.close(); await loadChats(); openChat(c.id); } catch (er) { $('#ne', m).textContent = er.message; } };
+    if (nc) nc.onclick = async () => { try { const c = await api('/chats/create', { type: tab, title: $('#nt', m).value, username: $('#nu', m)?.value || '', members: [...picked.keys()] }); mb.close(); await loadChats(); openChat(c.id); } catch (er) { $('#ne', m).textContent = er.message; } };
     ns.focus();
   };
   draw();
