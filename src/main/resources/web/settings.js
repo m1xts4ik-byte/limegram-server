@@ -17,10 +17,10 @@ Object.assign(I, {
 const SET_PRIV = [
   ['phoneSearch', 'Номер телефона', 'Кто может найти вас по номеру телефона', 1],
   ['lastSeen', 'Время захода', 'Кто видит, когда вы были в сети', 1],
-  ['photos', 'Фотографии профиля'], ['forwards', 'Пересылка сообщений'], ['calls', 'Звонки'],
-  ['voices', 'Голосовые сообщения'], ['messages', 'Сообщения'], ['birthday', 'День рождения'],
+  ['photos', 'Фотографии профиля', 'Кто видит ваше фото', 1], ['forwards', 'Пересылка сообщений', 'Кто может пересылать ваши сообщения', 1], ['calls', 'Звонки', 'Кто может вам звонить', 1],
+  ['voices', 'Голосовые сообщения', 'Кто может присылать голосовые', 1], ['messages', 'Сообщения', 'Кто может писать вам первым', 1], ['birthday', 'День рождения', 'Кто видит дату рождения', 1],
   ['gifts', 'Подарки', 'Кто видит ваши подарки', 1], ['about', 'О себе', 'Кто видит описание профиля', 1],
-  ['music', 'Сохранённая музыка'], ['invites', 'Приглашения'],
+  ['music', 'Сохранённая музыка', 'Кто видит вашу музыку', 1], ['invites', 'Приглашения', 'Кто может приглашать вас в группы', 1],
 ];
 const plN = (n, f) => { const a = Math.abs(n) % 100, b = a % 10; return n + ' ' + (a > 10 && a < 20 ? f[2] : b > 1 && b < 5 ? f[1] : b === 1 ? f[0] : f[2]); };
 const privVal = k => ((S.me.privacy || {})[k] === 'nobody' ? 'Никто' : 'Все');
@@ -90,15 +90,20 @@ function openSettings(tab) {
         <div class="profile-edit-list">
           <label class="profile-row"><span>Имя</span><input id="pn" maxlength="64" value="${esc(S.me.name)}"></label>
           <div class="profile-row readonly"><span>Номер телефона</span><b>${esc(fmtPhone(S.me.phone))}</b></div>
-          <label class="profile-row"><span>Имя пользователя</span><input id="pu" maxlength="32" placeholder="@username" value="${S.me.username ? '@' + esc(S.me.username) : ''}"></label>
+          <label class="profile-row"><span>Имя пользователя</span><input id="pu" maxlength="32" placeholder="@username" value="${S.me.username ? '@' + esc(S.me.username) : ''}"></label><div class="un-st" id="pus" style="padding:0 16px"></div>
           <label class="profile-row profile-row-about"><span>О себе</span><textarea id="pb" maxlength="${S.me.premium ? 500 : 200}" rows="3" placeholder="Любые подробности о себе">${esc(S.me.bio || '')}</textarea></label>
-          <div class="profile-row readonly"><span>Личный канал</span><b>Не указан</b></div>
+          <div class="profile-row pick" id="pchRow" role="button" tabindex="0"><span>Личный канал</span><b id="pchVal">${S.me.pchannel ? esc(S.me.pchannel.title) + ' · @' + esc(S.me.pchannel.username) : 'Не указан'}</b></div>
+          <div class="profile-row pick" id="estRow" role="button" tabindex="0"><span>Эмодзи-статус</span><b id="estVal">${S.me.premium ? (S.me.emoji ? `<span class="est-big">${esc(S.me.emoji)}</span>` : 'Не выбран') : '🔒 Premium'}</b></div>
           <div class="profile-row"><span>Цвет имени</span><div class="sw profile-sw" id="sw">${(S.me.premium ? COLORS.concat(PCOLORS) : COLORS).map(c => `<button type="button" data-c="${c}" style="background:${c}" class="${c === color ? 'on' : ''}" aria-label="${c}"></button>`).join('')}</div></div>
         </div>
         <div class="profile-avatar-actions"><label class="btn ghost" for="avatar-file">Изменить фотографию</label><button class="btn ghost" id="avatar-clear" type="button">Удалить фотографию</button><small>PNG, JPEG, WebP или GIF · до 300 КБ</small></div>
         <div class="err" id="pe"></div><button class="btn profile-save" id="ps">Сохранить</button>
       </div>`,
       b: () => {
+        unameBind(m, '#pu', '#pus', '');
+        let pch = S.me.pchannel ? S.me.pchannel.id : '';
+        $('#pchRow', m).onclick = () => pickPersonalChannel(pch, ch => { pch = ch ? ch.id : ''; $('#pchVal', m).textContent = ch ? ch.title + ' · @' + ch.username : 'Не указан'; });
+        $('#estRow', m).onclick = () => { if (!S.me.premium) return openPremium(); openEmojiStatusPicker(e => { $('#estVal', m).innerHTML = e ? `<span class="est-big">${esc(e)}</span>` : 'Не выбран'; }); };
         let avatar = S.me.avatar || '';
         const fileInput = $('#avatar-file', m);
         const refreshAvatar = () => {
@@ -113,7 +118,7 @@ function openSettings(tab) {
           if (img) openMediaLightbox(img.src);
         });
         $$('#sw [data-c]', m).forEach(b => b.onclick = () => { color = b.dataset.c; $$('#sw [data-c]', m).forEach(x => x.classList.toggle('on', x === b)); });
-        $('#ps', m).onclick = async () => { try { S.me = { ...S.me, ...(await api('/me/update', { name: $('#pn', m).value, username: $('#pu', m).value, bio: $('#pb', m).value, color, avatar })) }; toast('Профиль сохранён'); loadChats(); } catch (er) { $('#pe', m).textContent = er.message; } };
+        $('#ps', m).onclick = async () => { try { S.me = { ...S.me, ...(await api('/me/update', { name: $('#pn', m).value, username: $('#pu', m).value, bio: $('#pb', m).value, color, avatar, pchannel: pch })) }; toast('Профиль сохранён'); loadChats(); } catch (er) { $('#pe', m).textContent = er.message; } };
       },
     }),
 
@@ -142,11 +147,21 @@ function openSettings(tab) {
 
     privacy: () => ({
       t: 'Конфиденциальность',
-      h: `<div class="sh">Безопасность</div>${R('cloudpw', 'shield', 'Облачный пароль', S.me.hasPassword ? 'Вкл.' : 'Выкл.')}${R('autodel', 'clock', 'Автоудаление сообщений', S.chats.some(c => c.ttl) ? 'Вкл.' : 'Выкл.')}${R('passcode', 'lock', 'Код-пароль', localStorage.getItem('lg_pass') ? 'Вкл.' : 'Выкл.')}${R('soon1', 'key', 'Ключи доступа', 'Скоро', { dim: 1 })}${R('blocked', 'ban', 'Заблокированные пользователи', blocked().length)}${R('soon2', 'globe', 'Авторизованные сайты', 'Скоро', { dim: 1 })}${R('soon3', 'device', 'Активные сеансы', 'Скоро', { dim: 1 })}
+      h: `<div class="sh">Безопасность</div>${R('cloudpw', 'shield', 'Облачный пароль', S.me.hasPassword ? 'Вкл.' : 'Выкл.')}${R('autodel', 'clock', 'Автоудаление сообщений', S.chats.some(c => c.ttl) ? 'Вкл.' : 'Выкл.')}${R('passcode', 'lock', 'Код-пароль', localStorage.getItem('lg_pass') ? 'Вкл.' : 'Выкл.')}${R('keys', 'key', 'Ключи доступа', 'Нет')}${R('blocked', 'ban', 'Заблокированные пользователи', blocked().length)}${R('sites', 'globe', 'Авторизованные сайты', '0')}${R('sessions', 'device', 'Активные сеансы')}
       <div class="hint">Управление сеансами на всех подключённых устройствах.</div>
       <div class="sh">Конфиденциальность</div>${SET_PRIV.map(([k, t, , ok]) => ok ? R('pv:' + k, null, t, privVal(k)) : R('soon:' + k, null, t, 'Скоро', { dim: 1 })).join('')}`,
     }),
 
+    keys: () => ({ t: 'Ключи доступа', h: `<div class="pad"><p class="mu">Ключи доступа (passkeys) работают только по HTTPS и с доменом сервера. Для локального запуска они недоступны; для публичного сервера нужна настройка WebAuthn.</p></div>` }),
+    sites: () => ({ t: 'Авторизованные сайты', h: `<div class="pad mu">Вы не входили на сторонние сайты через LimeGram.</div>` }),
+    sessions: () => {
+      if (!m._ses && !m._sl) { m._sl = 1; api('/me/sessions').then(r => { m._ses = r; if (cur() === 'sessions') draw(); }).catch(fail); }
+      const l = m._ses || [], now = l.find(x => x.current), oth = l.filter(x => !x.current);
+      const row = x => `<div class="sr"><i>${I.device}</i><span>${esc(x.label || 'Устройство')}<small>${fmtDT(x.at)}</small></span>${x.current ? '' : `<button class="mini-b" data-ts="${esc(x.id)}">Завершить</button>`}</div>`;
+      return { t: 'Активные сеансы', h: `<div class="sh">Это устройство</div>${now ? row(now) : '<div class="pad mu">Загрузка…</div>'}${oth.length ? `<button class="sr red" id="tsa"><i>${I.logout}</i><span>Завершить все другие сеансы</span></button><div class="sh">Другие сеансы</div>${oth.map(row).join('')}` : ''}`,
+        b: () => { const go = async b => { try { await api('/me/sessions/end', b); m._ses = null; m._sl = 0; draw(); } catch (er) { fail(er); } };
+          $$('[data-ts]', m).forEach(b => b.onclick = () => go({ id: b.dataset.ts })); $('#tsa', m)?.addEventListener('click', () => go({ all: true })); } };
+    },
     cloudpw: () => ({
       t: 'Облачный пароль',
       h: `<div class="pad"><p class="mu">${S.me.hasPassword ? 'Облачный пароль включён. Он запрашивается при входе после кода.' : 'Облачный пароль не задан. Установите его, чтобы защитить вход.'} Пустое поле «новый» отключает пароль.</p>
