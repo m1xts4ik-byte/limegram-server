@@ -194,7 +194,19 @@ final class Core {
         return obj("id", id, "name", u.get("name"), "username", u.get("username"), "bio", hideAbout ? "" : u.get("bio"), "color", u.get("color"), "avatar", u.getOrDefault("avatar", ""),
                 "online", !hideSeen && hub.isOnline(id), "lastSeen", hideSeen ? 0 : u.get("lastSeen"), "hiddenSeen", hideSeen, "isAdmin", isAdmin(u),
                 "verified", b(u.get("verified")), "premium", pr, "emoji", pr ? s(u.get("emojiStatus")) : "",
+                "pchannel", pchan(u),
                 "gifts", hideGifts ? new ArrayList<>() : publicGifts(u));
+    }
+
+    /** Личный канал в профиле: только свой публичный канал (владелец/админ). */
+    private Object pchan(Map<String, Object> u) {
+        String cid = s(u.get("pchannel"));
+        if (cid.isEmpty()) return null;
+        Map<String, Object> c = chats.get(cid);
+        String uid = s(u.get("id"));
+        if (c == null || !"channel".equals(s(c.get("type"))) || s(c.get("username")).isEmpty()
+                || !(uid.equals(s(c.get("owner"))) || l(c.get("admins")).contains(uid))) return null;
+        return obj("id", cid, "title", c.get("title"), "username", c.get("username"), "count", l(c.get("members")).size());
     }
 
     private Map<String, Object> selfView(Map<String, Object> u) {
@@ -299,6 +311,65 @@ final class Core {
         return (u == null || b(u.get("banned"))) ? null : u;
     }
 
+    private final Map<String, Map<String, Object>> sessInfo = new HashMap<>();
+    private static String sid(String tk) { return Integer.toHexString(tk.hashCode()); }
+    synchronized Object setSessionLabel(String token, String label) {
+        if (token != null && sessions.containsKey(token)) { Map<String, Object> i = sessInfo.computeIfAbsent(token, k -> new LinkedHashMap<>()); i.put("label", label.length() > 60 ? label.substring(0, 60) : label); i.putIfAbsent("at", now()); }
+        return obj("ok", true);
+    }
+    synchronized Object sessionsList(String uid, String cur) {
+        List<Object> out = new ArrayList<>();
+        for (Map.Entry<String, String> e : sessions.entrySet()) if (uid.equals(e.getValue())) {
+            Map<String, Object> i = sessInfo.getOrDefault(e.getKey(), new LinkedHashMap<>());
+            out.add(obj("id", sid(e.getKey()), "label", i.getOrDefault("label", "Устройство"), "at", i.getOrDefault("at", now()), "current", e.getKey().equals(cur)));
+        }
+        return out;
+    }
+    synchronized Object sessionsEnd(String uid, String cur, String id, boolean all) {
+        List<String> del = new ArrayList<>();
+        for (Map.Entry<String, String> e : sessions.entrySet()) if (uid.equals(e.getValue()) && !e.getKey().equals(cur) && (all || sid(e.getKey()).equals(id))) del.add(e.getKey());
+        for (String k : del) { sessions.remove(k); sessInfo.remove(k); }
+        dirty();
+        return obj("ok", true, "ended", del.size());
+    }
+
+    private String unameErr(String un, Object selfUser, Object selfChat) {
+        if (!USERNAME.matcher(un).matches()) return "Username: 4–32 символа, латиница, цифры и _, начинается с буквы";
+        if (Set.of("limegram", "support", "telegram", "joinchat", "settings").contains(un.toLowerCase())) return "Этот username уже занят";
+        for (Map<String, Object> o : users.values()) if (o != selfUser && un.equalsIgnoreCase(s(o.get("username")))) return "Этот username уже занят";
+        for (Map<String, Object> o : chats.values()) if (o != selfChat && un.equalsIgnoreCase(s(o.get("username")))) return "Этот username уже занят";
+        return null;
+    }
+    private static String cleanUn(Object o) { String u = s(o).strip(); return u.startsWith("@") ? u.substring(1) : u; }
+    synchronized Object usernameCheck(String uid, String name, String chatId) {
+        String un = cleanUn(name);
+        if (un.isEmpty()) return obj("ok", true);
+        String er = chatId.isEmpty() ? unameErr(un, users.get(uid), null) : unameErr(un, null, chats.get(chatId));
+        return er == null ? obj("ok", true) : obj("ok", false, "error", er);
+    }
+    synchronized Object publicChats(String uid, String q) {
+        q = cleanUn(q).toLowerCase();
+        List<Object> r = new ArrayList<>();
+        if (q.length() < 2) return r;
+        for (Map<String, Object> c : chats.values()) {
+            String un = s(c.get("username"));
+            if (un.isEmpty() || r.size() >= 10) continue;
+            if (un.toLowerCase().contains(q) || s(c.get("title")).toLowerCase().contains(q))
+                r.add(obj("id", c.get("id"), "type", c.get("type"), "title", c.get("title"), "username", un, "about", s(c.get("about")), "count", l(c.get("members")).size(), "joined", l(c.get("members")).contains(uid)));
+        }
+        return r;
+    }
+    synchronized Object deleteChat(String uid, String chatId) {
+        Map<String, Object> chat = chatFor(uid, chatId);
+        String type = s(chat.get("type"));
+        if (!type.equals("group") && !type.equals("channel")) throw new Api(400, "Нельзя удалить этот чат");
+        if (!uid.equals(s(chat.get("owner")))) throw new Api(403, "Удалить может только владелец");
+        List<Object> mem = new ArrayList<>(l(chat.get("members")));
+        chats.remove(chatId); messages.remove(chatId); dirty();
+        for (Object mid : mem) hub.push(s(mid), "chat", obj("reload", true));
+        return obj("ok", true);
+    }
+
     synchronized Object logout(String token) { sessions.remove(token); dirty(); return obj("ok", true); }
 
     synchronized Object me(String uid) { return selfView(user(uid)); }
@@ -314,13 +385,20 @@ final class Core {
             String un = s(body.get("username")).strip();
             if (un.startsWith("@")) un = un.substring(1);
             if (!un.isEmpty()) {
-                if (!USERNAME.matcher(un).matches()) throw new Api(400, "Username: 4–32 символа, латиница, цифры и _, начинается с буквы");
-                for (Map<String, Object> o : users.values())
-                    if (o != u && un.equalsIgnoreCase(s(o.get("username")))) throw new Api(409, "Этот username уже занят");
+                String er = unameErr(un, u, null);
+                if (er != null) throw new Api(er.startsWith("Этот") ? 409 : 400, er);
             }
             u.put("username", un);
         }
         if (body.containsKey("bio")) u.put("bio", trunc(s(body.get("bio")).strip(), prem(u) ? 500 : 200));
+        if (body.containsKey("pchannel")) {
+            String cid = s(body.get("pchannel")).strip();
+            if (cid.isEmpty()) u.remove("pchannel");
+            else {
+                u.put("pchannel", cid);
+                if (pchan(u) == null) { u.remove("pchannel"); throw new Api(400, "Выберите свой публичный канал (с именем @username), где вы владелец или админ"); }
+            }
+        }
         if (body.containsKey("avatar")) {
             String avatar = s(body.get("avatar"));
             if (!avatar.isEmpty()) {
@@ -443,6 +521,7 @@ final class Core {
             }
         }
         v.put("members", mu);
+        v.put("username", s(chat.get("username")));
         return v;
     }
 
@@ -497,12 +576,15 @@ final class Core {
         if (!type.equals("group") && !type.equals("channel")) throw new Api(400, "Неверный тип чата");
         String title = s(body.get("title")).strip();
         if (title.isEmpty() || title.length() > 64) throw new Api(400, "Название: от 1 до 64 символов");
+        String cun = cleanUn(body.get("username"));
+        if (!cun.isEmpty()) { String er = unameErr(cun, null, null); if (er != null) throw new Api(er.startsWith("Этот") ? 409 : 400, er); }
         List<Object> mem = new ArrayList<>(List.of(uid));
         if (body.get("members") instanceof List<?> ml)
             for (Object o : ml) if (users.containsKey(s(o)) && !mem.contains(s(o)) && mem.size() < 1000) mem.add(s(o));
         String id = "g" + (++seq);
         Map<String, Object> chat = obj("id", id, "type", type, "title", title, "members", mem, "owner", uid,
                 "admins", new ArrayList<>(List.of(uid)), "lastTs", now());
+        if (!cun.isEmpty()) chat.put("username", cun);
         chats.put(id, chat);
         dirty();
         addMessage(chat, uid, type.equals("channel") ? "Канал «" + title + "» создан" : "Группа «" + title + "» создана", null, null);
@@ -804,6 +886,12 @@ final class Core {
             chat.put("title", t);
         }
         if (body.containsKey("about")) chat.put("about", trunc(s(body.get("about")).strip(), 200));
+        if (body.containsKey("username")) {
+            if (!uid.equals(s(chat.get("owner")))) throw new Api(403, "Username может менять только владелец");
+            String un = cleanUn(body.get("username"));
+            if (!un.isEmpty()) { String er = unameErr(un, null, chat); if (er != null) throw new Api(er.startsWith("Этот") ? 409 : 400, er); }
+            chat.put("username", un);
+        }
         dirty();
         for (Object mid : l(chat.get("members"))) hub.push(s(mid), "chat", obj("reload", true));
         return obj("ok", true);
@@ -848,11 +936,27 @@ final class Core {
         if (!type.equals("group") && !type.equals("channel")) throw new Api(400, "Ссылки есть только у групп и каналов");
         if (!l(chat.get("admins")).contains(uid)) throw new Api(403, "Только для администраторов");
         if (s(chat.get("invite")).isEmpty() || s(body.get("action")).equals("revoke")) { chat.put("invite", newInvite()); dirty(); }
-        return obj("code", chat.get("invite"), "link", "limegram://join/" + chat.get("invite"));
+        String pun = s(chat.get("username"));
+        return obj("code", chat.get("invite"), "link", pun.isEmpty() ? "limegram://join/" + chat.get("invite") : "limegram://u/" + pun, "username", pun);
     }
 
     synchronized Object join(String uid, String code) {
         code = code.strip();
+        if (code.startsWith("@") || code.contains("/u/")) {
+            String un = code.substring(code.lastIndexOf(code.startsWith("@") ? '@' : '/') + 1);
+            for (Map<String, Object> chat : chats.values()) {
+                if (!un.equalsIgnoreCase(s(chat.get("username")))) continue;
+                List<Object> mem = l(chat.get("members"));
+                if (!mem.contains(uid)) {
+                    if (mem.size() >= 1000) throw new Api(400, "В чате нет свободных мест");
+                    mem.add(uid); dirty();
+                    if (s(chat.get("type")).equals("group")) addMessage(chat, SYSTEM_ID, s(user(uid).get("name")) + " вступил(а)", null, null);
+                    for (Object mid : mem) hub.push(s(mid), "chat", obj("reload", true));
+                }
+                return chatView(chat, uid);
+            }
+            throw new Api(404, "Канал или группа с таким username не найдены");
+        }
         if (code.contains("/")) code = code.substring(code.lastIndexOf('/') + 1);
         if (code.length() < 6) throw new Api(400, "Неверная ссылка-приглашение");
         for (Map<String, Object> chat : chats.values()) {
@@ -1124,19 +1228,20 @@ final class Core {
     }
 
     // ======================= LimeGram Premium, звёзды, подарки =======================
-    static final Map<String, Object[]> GIFTS = new LinkedHashMap<>();   // id -> {эмодзи, название, цена}
-    static {   // Telegram-like gift catalog used by the client reference UI.
-        GIFTS.put("heart",   new Object[]{"💗", "Сердце", 15L, 0L, "#ff4fa3", "#ff0a73"});
-        GIFTS.put("bear",    new Object[]{"🧸", "Мишка", 15L, 0L, "#d89b48", "#8f5b20"});
-        GIFTS.put("box",     new Object[]{"🎁", "Подарок", 25L, 0L, "#ff3d5a", "#d5002b"});
-        GIFTS.put("rose",    new Object[]{"🌹", "Роза", 25L, 0L, "#ff526f", "#c51d3a"});
-        GIFTS.put("cake",    new Object[]{"🎂", "Торт", 50L, 0L, "#ffd1df", "#ff668d"});
-        GIFTS.put("bouquet", new Object[]{"💐", "Букет", 50L, 0L, "#ff8bb7", "#b83a78"});
-        GIFTS.put("rocket",  new Object[]{"🚀", "Ракета", 50L, 0L, "#79b9ff", "#3566d4"});
-        GIFTS.put("cup",     new Object[]{"🏆", "Кубок", 100L, 0L, "#ffd95c", "#c77800"});
-        GIFTS.put("ring",    new Object[]{"💍", "Кольцо", 100L, 0L, "#9fe9ff", "#4b78db"});
-        GIFTS.put("gem",     new Object[]{"💎", "Бриллиант", 100L, 0L, "#5ee8ff", "#1e74d8"});
-        GIFTS.put("champ",   new Object[]{"🪔", "Фонарь", 460L, 0L, "#8bd8ff", "#2c70a8"});
+    static final Map<String, Object[]> GIFTS = new LinkedHashMap<>();   // id -> {emoji, name, stars, stock, colors, Telegram gift id, slug}
+    static {
+        // Official Telegram regular StarGift IDs and Stars prices (catalog checked 2026-11-08).
+        GIFTS.put("heart",   new Object[]{"💗", "Сердце любви", 15L, 0L, "#ff4fa3", "#ff0a73", 5170145012310081615L, "love-heart"});
+        GIFTS.put("bear",    new Object[]{"🧸", "Мишка", 15L, 0L, "#d89b48", "#8f5b20", 5170233102089322756L, "teddy-bear"});
+        GIFTS.put("box",     new Object[]{"🎁", "Подарочная коробка", 25L, 0L, "#ff3d5a", "#d5002b", 5170250947678437525L, "gift-box"});
+        GIFTS.put("rose",    new Object[]{"🌹", "Красная роза", 25L, 0L, "#ff526f", "#c51d3a", 5168103777563050263L, "red-rose"});
+        GIFTS.put("cake",    new Object[]{"🎂", "Торт на день рождения", 50L, 0L, "#ffd1df", "#ff668d", 5170144170496491616L, "birthday-cake"});
+        GIFTS.put("bouquet", new Object[]{"💐", "Букет цветов", 50L, 0L, "#ff8bb7", "#b83a78", 5170314324215857265L, "bouquet-of-flowers"});
+        GIFTS.put("rocket",  new Object[]{"🚀", "Ракета", 50L, 0L, "#79b9ff", "#3566d4", 5170564780938756245L, "rocket"});
+        GIFTS.put("champ",   new Object[]{"🍾", "Бутылка шампанского", 50L, 0L, "#b7e58a", "#448b52", 6028601630662853006L, "champagne-bottle"});
+        GIFTS.put("cup",     new Object[]{"🏆", "Кубок", 100L, 0L, "#ffd95c", "#c77800", 5168043875654172773L, "trophy"});
+        GIFTS.put("ring",    new Object[]{"💍", "Бриллиантовое кольцо", 100L, 0L, "#9fe9ff", "#4b78db", 5170690322832818290L, "diamond-ring"});
+        GIFTS.put("gem",     new Object[]{"💎", "Самоцвет", 100L, 0L, "#5ee8ff", "#1e74d8", 5170521118301225164L, "gem"});
     }
     static final Map<Integer, Long> PREMIUM_PRICE = new LinkedHashMap<>();   // месяцев -> звёзд
     static { PREMIUM_PRICE.put(1, 300L); PREMIUM_PRICE.put(3, 800L); PREMIUM_PRICE.put(12, 2500L); }
@@ -1151,7 +1256,7 @@ final class Core {
         List<Object> r = new ArrayList<>();
         for (var e : GIFTS.entrySet()) {
             Object[] g = e.getValue(); long total = (Long) g[3];
-            r.add(obj("id", e.getKey(), "emoji", g[0], "name", g[1], "price", g[2], "total", total, "left", total == 0 ? -1 : Math.max(0, total - giftSold(e.getKey())), "c1", g[4], "c2", g[5]));
+            r.add(obj("id", e.getKey(), "emoji", g[0], "name", g[1], "price", g[2], "total", total, "left", total == 0 ? -1 : Math.max(0, total - giftSold(e.getKey())), "c1", g[4], "c2", g[5], "telegramGiftId", g[6], "telegramSlug", g[7]));
         }
         return obj("gifts", r, "plans", PREMIUM_PRICE.entrySet().stream().map(e -> obj("months", e.getKey(), "price", e.getValue())).toList());
     }
@@ -1178,7 +1283,10 @@ final class Core {
         for (Object o : gl) {
             Map<String, Object> g = m(o);
             if (b(g.get("hidden")) || b(g.get("converted"))) continue;
-            r.add(obj("id", g.get("id"), "gift", g.get("gift"), "from", b(g.get("anon")) ? "" : g.get("from"), "ts", g.get("ts"), "num", g.get("num"), "total", g.get("total")));
+            Object[] meta = GIFTS.get(s(g.get("gift")));
+            r.add(obj("id", g.get("id"), "gift", g.get("gift"), "from", b(g.get("anon")) ? "" : g.get("from"), "ts", g.get("ts"), "num", g.get("num"), "total", g.get("total"),
+                    "emoji", meta == null ? "🎁" : meta[0], "name", meta == null ? "Подарок" : meta[1], "price", meta == null ? 0 : meta[2],
+                    "telegramGiftId", meta == null ? 0 : meta[6], "telegramSlug", meta == null ? "" : meta[7]));
         }
         return r;
     }
@@ -1301,14 +1409,14 @@ final class Core {
     synchronized Object setEmojiStatus(String uid, String emoji) {
         Map<String, Object> u = user(uid);
         if (!prem(u)) throw new Api(403, "Эмодзи-статус доступен с LimeGram Premium");
-        u.put("emojiStatus", trunc(emoji.strip(), 8));
+        u.put("emojiStatus", trunc(emoji.strip(), 16));
         dirty();
         pushSelf(u);
         return obj("ok", true);
     }
 
     synchronized Object setPrivacy(String uid, String key, String val) {
-        if (!Set.of("lastSeen", "about", "gifts", "phoneSearch").contains(key)) throw new Api(400, "Неизвестная настройка");
+        if (!Set.of("lastSeen", "about", "gifts", "phoneSearch", "photos", "forwards", "calls", "voices", "messages", "birthday", "music", "invites").contains(key)) throw new Api(400, "Неизвестная настройка");
         if (!val.equals("all") && !val.equals("nobody")) throw new Api(400, "Неверное значение");
         Map<String, Object> u = user(uid);
         Map<String, Object> p = u.get("privacy") instanceof Map<?, ?> ? m(u.get("privacy")) : new LinkedHashMap<>();
