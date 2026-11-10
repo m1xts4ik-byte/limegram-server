@@ -6,8 +6,122 @@
 const gStyle = g => `--c1:${esc(g.c1 || '#60a5fa')};--c2:${esc(g.c2 || '#1d4ed8')}`;
 const GB_DONE = new Set();
 
+const TG_GIFT_IDS = {
+  heart: 5170145012310081615,
+  bear: 5170233102089322756,
+  box: 5170250947678437525,
+  rose: 5168103777563050263,
+  cake: 5170144170496491616,
+  bouquet: 5170314324215857265,
+  rocket: 5170564780938756245,
+  champ: 6028601630662853006,
+  cup: 5168043875654172773,
+  ring: 5170690322832818290,
+  gem: 5170521118301225164
+};
+const TG_GIFT_API = 'https://api.changes.tg';
+const TG_GIFT_ANIMS = new Map();
+
+function giftTelegramId(g) {
+  const kind = String(g?.gift || g?.giftId || g?.id || '');
+  return Number(g?.telegramGiftId || TG_GIFT_IDS[kind] || 0);
+}
 function giftArt(g, cls = '') {
-  return `<div class="tg-gift-art ${cls}" style="${gStyle(g)}"><div class="tg-gift-shine"></div><span>${esc(g.emoji || '🎁')}</span></div>`;
+  const tgId = giftTelegramId(g);
+  const fallback = esc(g.emoji || '🎁');
+  return `<div class="tg-gift-art tg-real-gift ${cls}" style="${gStyle(g)}" data-tg-gift="${tgId}" data-fallback-emoji="${fallback}" role="img" aria-label="${esc(g.name || 'Подарок')}">
+    <div class="tg-gift-lottie"><span class="tg-gift-loading">${fallback}</span></div>
+  </div>`;
+}
+
+// Telegram gifts are delivered as original TGS (gzip-compressed Lottie) animations.
+// The API is public; animations are loaded once per gift and reused in shop, chat and profile.
+async function fetchTelegramGiftTgs(id, slug) {
+  // The API exposes decompressed Lottie JSON directly; this avoids relying on pako.
+  // Keep both ID and slug routes because older catalog records may have either identifier.
+  const keys = [String(id), slug].filter(Boolean);
+  for (const key of keys) {
+    try {
+      const res = await fetch(`${TG_GIFT_API}/original/${encodeURIComponent(key)}.json`, {
+        mode: 'cors', cache: 'force-cache'
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data && Array.isArray(data.layers)) return data;
+    } catch (_) {}
+  }
+  return null;
+}
+function giftFallback(el) {
+  const holder = el?.querySelector('.tg-gift-lottie');
+  if (!holder) return;
+  // Never leave a blank card: restore the catalog artwork if remote files/CDN fail.
+  let fallback = holder.querySelector('.tg-gift-loading');
+  if (!fallback) {
+    fallback = document.createElement('span');
+    fallback.className = 'tg-gift-loading';
+    fallback.textContent = el.dataset.fallbackEmoji || '🎁';
+    holder.replaceChildren(fallback);
+  }
+  el.classList.remove('tg-gift-loaded');
+  el.classList.add('tg-gift-fallback');
+}
+function mountTelegramGift(el) {
+  if (!el || el.dataset.mounted === '1') return;
+  const id = Number(el.dataset.tgGift || 0);
+  if (!id) { giftFallback(el); return; }
+  el.dataset.mounted = '1';
+  const cached = TG_GIFT_ANIMS.get(id);
+  const render = data => {
+    const holder = el.querySelector('.tg-gift-lottie');
+    if (!holder || !el.isConnected) return;
+    if (!data || !window.lottie?.loadAnimation) {
+      giftFallback(el);
+      return;
+    }
+    try {
+      holder.replaceChildren();
+      window.lottie.loadAnimation({
+        container: holder, renderer: 'svg', loop: true, autoplay: true,
+        animationData: data,
+        rendererSettings: { preserveAspectRatio: 'xMidYMid meet', progressiveLoad: true }
+      });
+      el.classList.remove('tg-gift-fallback');
+      el.classList.add('tg-gift-loaded');
+    } catch (_) {
+      giftFallback(el);
+    }
+  };
+  if (cached) { render(cached); return; }
+  const slug = Object.keys(TG_GIFT_IDS).find(k => TG_GIFT_IDS[k] === id);
+  fetchTelegramGiftTgs(id, slug).then(data => {
+    if (data) TG_GIFT_ANIMS.set(id, data);
+    render(data);
+  }).catch(() => giftFallback(el));
+}
+function scanTelegramGifts(root = document) {
+  root.querySelectorAll?.('.tg-real-gift[data-tg-gift]').forEach(mountTelegramGift);
+}
+const tgGiftObserver = new MutationObserver(records => {
+  for (const record of records) for (const node of record.addedNodes) {
+    if (node.nodeType !== 1) continue;
+    if (node.matches?.('.tg-real-gift')) mountTelegramGift(node);
+    scanTelegramGifts(node);
+  }
+});
+function startTelegramGiftPlayers() {
+  scanTelegramGifts();
+  if (document.body && !tgGiftObserverStarted) {
+    tgGiftObserver.observe(document.body, { childList: true, subtree: true });
+    tgGiftObserverStarted = true;
+  }
+}
+let tgGiftObserverStarted = false;
+document.addEventListener('DOMContentLoaded', startTelegramGiftPlayers);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startTelegramGiftPlayers, { once: true });
+} else {
+  startTelegramGiftPlayers();
 }
 
 function giftMsgHtml(m) {
