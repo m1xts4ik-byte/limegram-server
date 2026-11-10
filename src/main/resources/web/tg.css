@@ -1,0 +1,95 @@
+/* LimeGram — оформление как в Telegram (Web/Desktop): палитра, пузыри с «хвостиками», шрифт, список чатов */
+:root{--tg-font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --primary:#3390ec;--bg2:#f4f4f5;--line:#e7e8ea;--muted:#707579;
+  --in:#fff;--in-text:#000;--out:#eeffde;--out-text:#000;--out-meta:#4fae4e;--out-link:#168acd;--chat-a:#8fb4cf;--chat-b:#b5d3c2;--chat-c:#a5c4b0}
+html[data-theme=dark]{--bg:#212121;--bg2:#0f0f0f;--hover:#2c2c2c;--line:#0f0f0f;--muted:#aaa;--in:#212121;--out:#8774e1;--out-text:#fff;--out-meta:rgba(255,255,255,.65);--out-link:#fff;--chat-a:#0f0f0f;--chat-b:#181818;--chat-c:#0f0f0f}
+body,button,input,textarea{font-family:var(--tg-font)}
+.side{background:var(--bg);border-right:1px solid var(--line)}
+.search{background:var(--bg2);border-radius:22px}
+.search:focus-within{box-shadow:inset 0 0 0 2px var(--primary);background:var(--bg)}
+.folders button.on{color:var(--primary)}
+.item{border-radius:10px;margin:0 6px}
+.item.on{background:var(--primary)!important;color:#fff}
+.item.on .pv,.item.on .time{color:rgba(255,255,255,.8)}
+.item.on .badge{background:#fff;color:var(--primary)}
+.badge{background:var(--primary);border-radius:12px;min-width:22px}
+.badge.muted{background:#c4c9cc}
+.head{background:var(--bg);box-shadow:0 1px 0 var(--line)}
+.bub{border-radius:12px;box-shadow:0 1px 2px rgba(16,35,47,.18)}
+.msg:not(.me):not(.cont) .bub::before,.msg.me:not(.cont) .bub::before{content:"";position:absolute;bottom:0;width:10px;height:12px;background:inherit}
+.msg:not(.me):not(.cont) .bub::before{left:-5px;clip-path:path("M10 0V12H0C5 11 9 7 10 0Z")}
+.msg.me:not(.cont) .bub::before{right:-5px;clip-path:path("M0 0V12H10C5 11 1 7 0 0Z")}
+.msg:not(.me):not(.cont) .bub{border-bottom-left-radius:4px}
+.msg.me:not(.cont) .bub{border-bottom-right-radius:4px}
+.msg.me .meta,.msg.me .meta .rd{color:var(--out-meta)}
+.msg.me .quote{border-left-color:var(--out-meta)}
+.comp .box{background:var(--bg);border-radius:22px;box-shadow:0 1px 2px rgba(16,35,47,.15)}
+.send{background:var(--primary);border-radius:50%}
+.fab{background:var(--primary)}
+.drawer .me{background:var(--primary)}
+.logo{width:120px;height:120px;border-radius:50%;object-fit:cover}
+.av .logo,.item .logo{width:100%;height:100%}
+.toast{border-radius:10px}
+
+/* поля ввода: текст всегда читается в обеих темах (исправление белого поля со светлым текстом) */
+input,textarea,select{background:var(--bg2);color:var(--text);caret-color:var(--primary)}
+input::placeholder,textarea::placeholder{color:var(--muted);opacity:.8}
+input:-webkit-autofill{-webkit-text-fill-color:var(--text);-webkit-box-shadow:0 0 0 40px var(--bg2) inset}
+.linkbox{background:var(--bg2);color:var(--text);border-radius:10px;padding:12px 14px;margin:8px 0 4px;font-size:15px;word-break:break-all;user-select:all;cursor:text}
+.mu2{margin:6px 0 0;font-size:14px;color:var(--muted)}
+.mact{display:flex;gap:8px;margin-top:12px}.mact .btn{flex:1}
+.un-st{min-height:18px;font-size:13px;color:var(--muted);margin:-4px 0 4px}
+.un-st.ok{color:#2fb85c}.un-st.bad{color:var(--danger)}
+.unp{display:flex;align-items:center;margin:8px 20px 0;background:var(--bg2);border-radius:10px;padding:0 12px;border:1.5px solid transparent}
+.unp:focus-within{border-color:var(--primary)}.unp span{color:var(--muted);white-space:nowrap}
+.unp input{flex:1;background:transparent;border:0;padding:11px 0 11px 2px;min-width:0}
+.modal{background:var(--bg);color:var(--text);border-radius:14px}
+
+/* ---- личный канал и Premium-эмодзи ---- */
+.profile-row.pick{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px}.profile-row.pick:hover{background:var(--hover)}
+.profile-row.pick b{font-weight:500;color:var(--accent,#4ade80);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%}
+.pcr{cursor:pointer}.pcr.off{opacity:.5}
+.kv2.pch{cursor:pointer}.kv2.pch:hover{background:var(--hover)}.kv2.pch span svg{width:18px;height:18px;vertical-align:-4px;margin-right:4px}
+.est,.est-big{display:inline-block;animation:estf 2.8s ease-in-out infinite;transform-origin:50% 70%}
+.est-big{font-size:22px;line-height:1}
+@keyframes estf{0%,100%{transform:translateY(0) scale(1)}35%{transform:translateY(-2px) scale(1.14) rotate(-6deg)}65%{transform:translateY(0) scale(1.06) rotate(5deg)}}
+.emx{max-width:420px}.emx-cur{display:flex;gap:12px;align-items:center;padding:6px 20px 10px}.emx-cur .est-big{font-size:34px}.emx-cur small{display:block;color:var(--muted)}
+.emx-q{margin:0 20px 8px;width:calc(100% - 40px);padding:9px 14px;border-radius:20px;border:1px solid var(--border,#3a3a3a);background:var(--hover);color:inherit}
+.emx-tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 20px 8px}.emx-tabs button{white-space:nowrap;padding:5px 12px;border-radius:16px;font-size:13px;background:var(--hover);border:0;color:inherit}.emx-tabs button.on{background:var(--accent,#22c55e);color:#fff}
+.emx-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:4px 14px 10px;max-height:260px;overflow-y:auto}
+.emx-grid button{font-size:26px;padding:6px 0;border:0;border-radius:10px;background:none;transition:transform .15s,background .15s}.emx-grid button:hover{background:var(--hover);transform:scale(1.18)}
+.emx-grid button:hover span{display:inline-block;animation:estf 1.1s ease-in-out infinite}.emx-grid button.on{background:var(--hover);outline:2px solid var(--accent,#22c55e)}
+.emx-empty{grid-column:1/-1;text-align:center;color:var(--muted)}
+
+
+/* Real Telegram StarGift TGS animations */
+.tg-real-gift{position:relative;display:grid;place-items:center;overflow:hidden;isolation:isolate}
+.tg-real-gift .tg-gift-lottie{width:100%;height:100%;min-height:108px;display:grid;place-items:center;position:relative}
+.tg-real-gift .tg-gift-lottie svg{display:block;width:100%!important;height:100%!important;max-width:100%;max-height:100%;overflow:visible}
+.tg-real-gift .tg-gift-loading{font-size:42px;opacity:.55;filter:drop-shadow(0 5px 5px rgba(0,0,0,.18))}
+.tg-real-gift.tg-gift-loaded .tg-gift-loading{display:none}
+.tg-real-gift.detail-art .tg-gift-lottie{min-height:250px}
+.tg-real-gift.detail-art .tg-gift-lottie svg{max-width:310px;max-height:310px}
+.tg-real-gift.chat-art .tg-gift-lottie{min-height:138px}
+.tg-real-gift.shop-art .tg-gift-lottie{min-height:112px}
+.tg-real-gift.tg-gift-fallback .tg-gift-loading{opacity:.85}
+.tg-gifts-shop .tg-ref-footer:after{content:"Анимации оригинальных подарков · Gift Changes API";display:block;text-align:center;font-size:10px;opacity:.5;padding:7px 0}
+
+.tg-real-gift{width:116px;height:116px;border-radius:0!important;background:transparent!important;box-shadow:none!important;animation:none!important;transform:none!important}
+.tg-real-gift:before,.tg-real-gift:after{display:none!important;content:none!important}
+.tg-real-gift .tg-gift-lottie{position:relative;width:100%;height:100%;min-height:100%;display:flex;align-items:center;justify-content:center}
+.tg-real-gift .tg-gift-lottie svg{width:100%!important;height:100%!important}
+.tg-real-gift .tg-gift-loading{font-size:50px;animation:none!important;filter:drop-shadow(0 6px 5px rgba(0,0,0,.2))}
+.tg-real-gift .tg-gift-static{display:block;width:100%;height:100%;object-fit:contain}
+.tg-real-gift.detail-art{width:210px!important;height:190px!important}
+.tg-real-gift.detail-art .tg-gift-lottie{min-height:190px}
+.tg-real-gift.chat-art{width:190px!important;height:132px!important}
+.tg-real-gift.shop-art{width:88px!important;height:88px!important}
+.tg-real-gift .tg-gift-loading{line-height:1}
+
+
+/* Reliability patch: gift cards must never collapse to empty when remote animation is offline. */
+.tg-real-gift .tg-gift-lottie{min-width:72px;min-height:72px}
+.tg-real-gift.tg-gift-fallback .tg-gift-loading{display:block!important;visibility:visible!important;opacity:1!important}
+.tg-real-gift.tg-gift-loaded .tg-gift-loading{display:none}
+.tg-real-gift .tg-gift-lottie svg{min-width:64px;min-height:64px}
