@@ -92,6 +92,9 @@ public final class Main {
             case "POST /api/chats/clear" -> core.clearHistory(uid, str(body, "chatId"));
             case "POST /api/users/block" -> core.block(uid, str(body, "userId"), !Boolean.FALSE.equals(body.get("blocked")));
             case "POST /api/chats/invite" -> core.invite(uid, body);
+            case "GET /api/username/check" -> core.usernameCheck(uid, q.getOrDefault("name", ""), q.getOrDefault("chatId", ""));
+            case "GET /api/chats/public" -> core.publicChats(uid, q.getOrDefault("q", ""));
+            case "POST /api/chats/delete" -> core.deleteChat(uid, str(body, "chatId"));
             case "POST /api/chats/join" -> core.join(uid, str(body, "code"));
             case "POST /api/chats/pin" -> core.pin(uid, body);
             case "POST /api/chats/prefs" -> core.chatPrefs(uid, body);
@@ -115,6 +118,9 @@ public final class Main {
             case "POST /api/stars/send" -> core.starsTransfer(uid, str(body, "userId"), Core.n(body.get("amount")));
             case "POST /api/premium/buy" -> core.premiumBuy(uid, (int) Core.n(body.get("months")));
             case "POST /api/me/emoji-status" -> core.setEmojiStatus(uid, str(body, "emoji"));
+            case "GET /api/me/sessions" -> core.sessionsList(uid, token);
+            case "POST /api/me/sessions/end" -> core.sessionsEnd(uid, token, str(body, "id"), Boolean.TRUE.equals(body.get("all")));
+            case "POST /api/me/session-label" -> core.setSessionLabel(token, str(body, "label"));
             case "POST /api/me/privacy" -> core.setPrivacy(uid, str(body, "key"), str(body, "value"));
             case "POST /api/gifts/send" -> core.giftSend(uid, str(body, "userId"), str(body, "gift"), str(body, "text"), Boolean.TRUE.equals(body.get("anon")));
             case "POST /api/gifts/convert" -> core.giftConvert(uid, str(body, "id"));
